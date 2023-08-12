@@ -1,2 +1,3 @@
 # PipniAPI
-Tool for testing API endpoints
+
+PipniAPI is a tool for testing API endpoints.
