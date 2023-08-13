@@ -2,9 +2,10 @@
   "name": "pipniapi",
   "version": "0.1.0",
   "description": "Tool for testing API endpoints",
-  "main": "main.js",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
     "start": "electron ."
   },
   "repository": {
@@ -18,6 +19,14 @@
   },
   "homepage": "https://github.com/mokiat/PipniAPI#readme",
   "devDependencies": {
-    "electron": "^25.5.0"
+    "@rollup/plugin-commonjs": "^25.0.4",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-terser": "^0.4.3",
+    "electron": "^25.5.0",
+    "electron-builder": "^24.6.3",
+    "rollup-plugin-css-only": "^4.3.0",
+    "rollup-plugin-livereload": "^2.0.5",
+    "rollup-plugin-svelte": "^7.1.6",
+    "svelte": "^4.2.0"
   }
 }
