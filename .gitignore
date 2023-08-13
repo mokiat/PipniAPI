@@ -6,3 +6,4 @@ node_modules
 
 # Target
 /public/build
+/dist
