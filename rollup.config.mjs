@@ -6,7 +6,9 @@ import commonjs from "@rollup/plugin-commonjs";
 import resolve from "@rollup/plugin-node-resolve";
 import livereload from "rollup-plugin-livereload";
 import terser from "@rollup/plugin-terser";
-import css from "rollup-plugin-css-only";
+import postcss from "rollup-plugin-postcss";
+import tailwindcss from "tailwindcss";
+import autoprefixer from "autoprefixer";
 import { spawn } from "child_process";
 
 const production = !process.env.ROLLUP_WATCH;
@@ -47,14 +49,18 @@ export default {
       },
     }),
 
-    css({ output: "bundle.css" }),
-
     resolve({
       browser: true,
       dedupe: ["svelte"],
     }),
 
     commonjs(),
+
+    postcss({
+      plugins: [tailwindcss("./tailwind.config.mjs"), autoprefixer],
+      extract: "bundle.css",
+      minimize: production,
+    }),
 
     !production && serve(),
 
