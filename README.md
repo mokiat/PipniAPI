@@ -1,2 +1,3 @@
-# PipniAPI
-Tool for testing API endpoints
+# Pipni API
+
+Pipni API is a tool for testing HTTP RESTful endpoints.
