@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/mokiat/PipniAPI/internal/model"
 	"github.com/mokiat/PipniAPI/internal/mvc"
 )
 
@@ -15,42 +16,12 @@ func NewWindow(eventBus *mvc.EventBus) fyne.CanvasObject {
 }
 
 func NewTreeMenu(eventBus *mvc.EventBus) fyne.CanvasObject {
-	envSelector := widget.NewSelect([]string{"Staging", "Production"}, func(string) {
-		// TOOD
-	})
-	envSelector.SetSelected("Staging")
+	registry := model.NewRegistry(eventBus) // TODO: Move outside
 
-	settings := widget.NewButton("Settings", func() {})
+	top := NewEnvSelector(eventBus, registry)
+	middle := NewResourceTree(eventBus, registry)
 
-	top := container.NewBorder(nil, nil, nil, settings, envSelector)
-
-	apiTree := widget.NewTree(
-		func(parentID widget.TreeNodeID) []widget.TreeNodeID {
-			if parentID == "" {
-				return []widget.TreeNodeID{"User", "Admin"}
-			}
-			return nil
-		},
-		func(id widget.TreeNodeID) bool {
-			return id == ""
-		},
-		func(bool) fyne.CanvasObject {
-			return widget.NewLabel("Resource Tree")
-		},
-		func(id widget.TreeNodeID, isBranch bool, obj fyne.CanvasObject) {
-			obj.(*widget.Label).SetText(id)
-		},
-	)
-	apiTree.Select("User")
-
-	// apiTree = widget.NewTreeWithStrings(map[string][]string{
-	// 	"":      {"hello", "world"},
-	// 	"hello": {"1", "2"},
-	// })
-
-	bottom := widget.NewCheck("Hello", func(bool) {})
-
-	return container.NewBorder(top, bottom, nil, nil, apiTree)
+	return container.NewBorder(top, nil, nil, nil, middle)
 }
 
 func NewContentArena(eventBus *mvc.EventBus) fyne.CanvasObject {
