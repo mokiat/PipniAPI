@@ -1,8 +1,6 @@
 package view
 
 import (
-	"log"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
@@ -11,17 +9,22 @@ import (
 	"github.com/mokiat/gog"
 )
 
-func NewEnvSelector(eventBus *mvc.EventBus, mdl *model.Registry) fyne.CanvasObject {
+func NewEnvSelector(
+	eventBus *mvc.EventBus,
+	mdlRegistry *model.Registry,
+	mdlWorkspace *model.Workspace,
+) fyne.CanvasObject {
+
 	envSelectControl := widget.NewSelect(nil, nil)
 
 	updateOptions := func(envs []*model.Environment) {
-		values := gog.Map(mdl.Environments(), func(env *model.Environment) string {
+		values := gog.Map(mdlRegistry.Environments(), func(env *model.Environment) string {
 			return env.Name()
 		})
 		envSelectControl.Options = values
 		envSelectControl.Refresh()
 	}
-	updateOptions(mdl.Environments())
+	updateOptions(mdlRegistry.Environments())
 
 	updateSelected := func(activeEnv *model.Environment) {
 		if activeEnv != nil {
@@ -30,20 +33,21 @@ func NewEnvSelector(eventBus *mvc.EventBus, mdl *model.Registry) fyne.CanvasObje
 			envSelectControl.SetSelected("")
 		}
 	}
-	updateSelected(mdl.ActiveEnvironment())
+	updateSelected(mdlRegistry.ActiveEnvironment())
 
 	envSelectControl.OnChanged = func(name string) {
-		env, ok := gog.FindFunc(mdl.Environments(), func(env *model.Environment) bool {
+		env, ok := gog.FindFunc(mdlRegistry.Environments(), func(env *model.Environment) bool {
 			return env.Name() == name
 		})
 		if ok {
-			mdl.SetActiveEnvironment(env)
+			mdlRegistry.SetActiveEnvironment(env)
 		}
 	}
 
 	settingsButton := widget.NewButton("Settings", nil)
 	settingsButton.OnTapped = func() {
-		log.Println("SETTINGS")
+		// FIXME: Prevent duplicates
+		mdlWorkspace.AddEditor(model.NewEnvironmentEditor())
 	}
 
 	eventBus.Subscribe(func(event mvc.Event) {

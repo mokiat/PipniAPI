@@ -1,25 +1,27 @@
 package model
 
-import "github.com/mokiat/PipniAPI/internal/mvc"
-
-func NewEditor(eventBus *mvc.EventBus) *Editor {
-	return &Editor{
-		eventBus: eventBus,
-	}
+type Editor interface {
+	Title() string
 }
 
-type Editor struct {
-	eventBus *mvc.EventBus
-}
+// func NewEditor(eventBus *mvc.EventBus) *Editor {
+// 	return &Editor{
+// 		eventBus: eventBus,
+// 	}
+// }
 
-func (e *Editor) IsDirty() bool {
-	return false
-}
+// type Editor struct {
+// 	eventBus *mvc.EventBus
+// }
 
-func (e *Editor) Save() {
+// func (e *Editor) IsDirty() bool {
+// 	return false
+// }
 
-}
+// func (e *Editor) Save() {
 
-type EditorDirtyChangedEvent struct {
-	Editor *Editor
-}
+// }
+
+// type EditorDirtyChangedEvent struct {
+// 	Editor *Editor
+// }
