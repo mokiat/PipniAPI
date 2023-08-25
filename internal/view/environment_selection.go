@@ -9,22 +9,17 @@ import (
 	"github.com/mokiat/gog"
 )
 
-func NewEnvSelector(
-	eventBus *mvc.EventBus,
-	mdlRegistry *model.Registry,
-	mdlWorkspace *model.Workspace,
-) fyne.CanvasObject {
-
+func (w *Window) newEnvironmentSelection() fyne.CanvasObject {
 	envSelectControl := widget.NewSelect(nil, nil)
 
 	updateOptions := func(envs []*model.Environment) {
-		values := gog.Map(mdlRegistry.Environments(), func(env *model.Environment) string {
+		values := gog.Map(w.mdlRegistry.Environments(), func(env *model.Environment) string {
 			return env.Name()
 		})
 		envSelectControl.Options = values
 		envSelectControl.Refresh()
 	}
-	updateOptions(mdlRegistry.Environments())
+	updateOptions(w.mdlRegistry.Environments())
 
 	updateSelected := func(activeEnv *model.Environment) {
 		if activeEnv != nil {
@@ -33,24 +28,24 @@ func NewEnvSelector(
 			envSelectControl.SetSelected("")
 		}
 	}
-	updateSelected(mdlRegistry.ActiveEnvironment())
+	updateSelected(w.mdlRegistry.ActiveEnvironment())
 
 	envSelectControl.OnChanged = func(name string) {
-		env, ok := gog.FindFunc(mdlRegistry.Environments(), func(env *model.Environment) bool {
+		env, ok := gog.FindFunc(w.mdlRegistry.Environments(), func(env *model.Environment) bool {
 			return env.Name() == name
 		})
 		if ok {
-			mdlRegistry.SetActiveEnvironment(env)
+			w.mdlRegistry.SetActiveEnvironment(env)
 		}
 	}
 
 	settingsButton := widget.NewButton("Settings", nil)
 	settingsButton.OnTapped = func() {
 		// FIXME: Prevent duplicates
-		mdlWorkspace.AddEditor(model.NewEnvironmentEditor())
+		w.mdlWorkspace.AddEditor(model.NewEnvironmentEditor())
 	}
 
-	eventBus.Subscribe(func(event mvc.Event) {
+	w.eventBus.Subscribe(func(event mvc.Event) {
 		switch event := event.(type) {
 		case model.ActiveEnvironmentChangedEvent:
 			updateSelected(event.ActiveEnvironment)

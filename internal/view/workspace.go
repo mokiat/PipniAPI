@@ -9,7 +9,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func NewWorkspace(eventBus *mvc.EventBus, mdl *model.Workspace) fyne.CanvasObject {
+func (w *Window) newWorkspace() fyne.CanvasObject {
 	contentForEditor := make(map[model.Editor]fyne.CanvasObject)
 
 	tabs := container.NewDocTabs()
@@ -19,7 +19,7 @@ func NewWorkspace(eventBus *mvc.EventBus, mdl *model.Workspace) fyne.CanvasObjec
 		for i, editor := range editors {
 			content, ok := contentForEditor[editor]
 			if !ok {
-				content = createEditorContent(editor)
+				content = w.createEditorContent(editor)
 				contentForEditor[editor] = content
 			}
 			items[i] = container.NewTabItem(editor.Title(), content)
@@ -27,12 +27,12 @@ func NewWorkspace(eventBus *mvc.EventBus, mdl *model.Workspace) fyne.CanvasObjec
 		}
 		tabs.SetItems(items)
 	}
-	updateTabs(mdl.Editors())
+	updateTabs(w.mdlWorkspace.Editors())
 
 	updateSelection := func(activeEditor model.Editor) {
-		tabs.SelectIndex(slices.Index(mdl.Editors(), activeEditor))
+		tabs.SelectIndex(slices.Index(w.mdlWorkspace.Editors(), activeEditor))
 	}
-	updateSelection(mdl.ActiveEditor())
+	updateSelection(w.mdlWorkspace.ActiveEditor())
 
 	tabs.CloseIntercept = func(ti *container.TabItem) {
 		// TODO: If dirty, don't ask beforehand
@@ -43,43 +43,31 @@ func NewWorkspace(eventBus *mvc.EventBus, mdl *model.Workspace) fyne.CanvasObjec
 	tabs.OnClosed = func(ti *container.TabItem) {
 		for editor, content := range contentForEditor {
 			if content == ti.Content {
-				mdl.RemoveEditor(editor)
+				w.mdlWorkspace.RemoveEditor(editor)
 			}
 		}
 	}
 
-	eventBus.Subscribe(func(event mvc.Event) {
+	w.eventBus.Subscribe(func(event mvc.Event) {
 		switch event := event.(type) {
 		case model.EditorAddedEvent:
-			updateTabs(mdl.Editors())
+			updateTabs(w.mdlWorkspace.Editors())
 		case model.EditorRemovedEvent:
-			updateTabs(mdl.Editors())
+			updateTabs(w.mdlWorkspace.Editors())
 		case model.EditorSelectedEvent:
 			updateSelection(event.Editor)
 		}
 	})
 
-	// tabs.SetItems(items []*container.TabItem)
-
-	// return container.NewAppTabs(
-	// 	container.NewTabItem("hello", container.NewVSplit(
-	// 		widget.NewLabel("request"),
-	// 		widget.NewLabel("response"),
-	// 	)),
-	// 	container.NewTabItem("bye", container.NewVSplit(
-	// 		widget.NewLabel("env"),
-	// 		widget.NewLabel("tmp"),
-	// 	)),
-	// )
 	return tabs
 }
 
-func createEditorContent(editor model.Editor) fyne.CanvasObject {
-	switch editor.(type) {
+func (w *Window) createEditorContent(editor model.Editor) fyne.CanvasObject {
+	switch editor := editor.(type) {
 	case *model.EnvironmentEditor:
 		return widget.NewLabel("Environment Configuration ...")
-	case *model.RequestEditor:
-		return widget.NewLabel("Request / Response ...")
+	case *model.EndpointEditor:
+		return w.newEndpointEditor(editor)
 	default:
 		return widget.NewLabel("Unsupported editor")
 	}

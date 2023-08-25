@@ -9,6 +9,13 @@ import (
 	"fyne.io/fyne/v2"
 )
 
+func Must(res fyne.Resource, err error) fyne.Resource {
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 func LoadResourceFromFS(f fs.FS, resource string) (fyne.Resource, error) {
 	file, err := f.Open(resource)
 	if err != nil {

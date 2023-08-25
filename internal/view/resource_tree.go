@@ -3,11 +3,9 @@ package view
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
-	"github.com/mokiat/PipniAPI/internal/model"
-	"github.com/mokiat/PipniAPI/internal/mvc"
 )
 
-func NewResourceTree(eventBus *mvc.EventBus, mdl *model.Registry) fyne.CanvasObject {
+func (w *Window) newResourceTree() fyne.CanvasObject {
 	apiTree := widget.NewTree(
 		func(parentID widget.TreeNodeID) []widget.TreeNodeID {
 			if parentID == "" {

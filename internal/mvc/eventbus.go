@@ -1,5 +1,8 @@
 package mvc
 
+// NOTE: This has been copy-pasted from the lacking engine's UI framework:
+// https://github.com/mokiat/lacking
+
 import "golang.org/x/exp/slices"
 
 // Event represents an arbitrary notification event.

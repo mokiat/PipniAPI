@@ -7,35 +7,41 @@ import (
 	"github.com/mokiat/PipniAPI/internal/mvc"
 )
 
-func NewWindow(eventBus *mvc.EventBus) fyne.CanvasObject {
-	mdlWorkspace := model.NewWorkspace(eventBus)
-	mdlWorkspace.AddEditor(model.NewEnvironmentEditor())
-	mdlWorkspace.AddEditor(model.NewRequestEditor())
+type Window struct {
+	app fyne.App
+	win fyne.Window
 
-	return container.NewHSplit(
-		NewNavigationPanel(eventBus, mdlWorkspace),
-		NewWorkspace(eventBus, mdlWorkspace),
-	)
+	eventBus     *mvc.EventBus
+	mdlRegistry  *model.Registry
+	mdlWorkspace *model.Workspace
 }
 
-// func NewTreeMenu(eventBus *mvc.EventBus) fyne.CanvasObject {
-// 	registry := model.NewRegistry(eventBus) // TODO: Move outside
+func NewWindow(app fyne.App, win fyne.Window) *Window {
+	eventBus := mvc.NewEventBus()
 
-// 	top := NewEnvSelector(eventBus, registry)
-// 	middle := NewResourceTree(eventBus, registry)
+	mdlRegistry := model.NewRegistry(eventBus)
 
-// 	return container.NewBorder(top, nil, nil, nil, middle)
-// }
+	mdlWorkspace := model.NewWorkspace(eventBus)
+	mdlWorkspace.AddEditor(model.NewEnvironmentEditor())
+	mdlWorkspace.AddEditor(model.NewEndpointEditor(eventBus, "<guid-here>"))
 
-// func NewContentArena(eventBus *mvc.EventBus) fyne.CanvasObject {
-// 	return container.NewAppTabs(
-// 		container.NewTabItem("hello", container.NewVSplit(
-// 			widget.NewLabel("request"),
-// 			widget.NewLabel("response"),
-// 		)),
-// 		container.NewTabItem("bye", container.NewVSplit(
-// 			widget.NewLabel("env"),
-// 			widget.NewLabel("tmp"),
-// 		)),
-// 	)
-// }
+	return &Window{
+		app: app,
+		win: win,
+
+		eventBus:     eventBus,
+		mdlRegistry:  mdlRegistry,
+		mdlWorkspace: mdlWorkspace,
+	}
+}
+
+func (w *Window) RenderMainMenu() *fyne.MainMenu {
+	return w.newMainMenu()
+}
+
+func (w *Window) RenderContent() fyne.CanvasObject {
+	return container.NewHSplit(
+		w.newNavigationPanel(),
+		w.newWorkspace(),
+	)
+}
