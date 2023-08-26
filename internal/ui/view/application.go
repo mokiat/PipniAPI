@@ -43,12 +43,37 @@ func (c *applicationComponent) Render() co.Instance {
 					Width:               opt.V(300),
 				})
 				co.WithData(std.ContainerData{
-					BackgroundColor: opt.V(ui.Red()),
-					BorderColor:     opt.V(std.OutlineColor),
+					BorderColor: opt.V(std.OutlineColor),
 					BorderSize: ui.Spacing{
 						Right: 1,
 					},
+					Padding: ui.UniformSpacing(5),
+					Layout: layout.Frame(layout.FrameSettings{
+						ContentSpacing: ui.Spacing{
+							Top:    5,
+							Bottom: 5,
+						},
+					}),
 				})
+
+				co.WithChild("environment-selection", co.New(EnvironmentSelection, func() {
+					co.WithLayoutData(layout.Data{
+						VerticalAlignment: layout.VerticalAlignmentTop,
+					})
+				}))
+
+				co.WithChild("endpoint-selection", co.New(EndpointSelection, func() {
+					co.WithLayoutData(layout.Data{
+						HorizontalAlignment: layout.HorizontalAlignmentCenter,
+						VerticalAlignment:   layout.VerticalAlignmentCenter,
+					})
+				}))
+
+				co.WithChild("endpoint-management", co.New(EndpointManagement, func() {
+					co.WithLayoutData(layout.Data{
+						VerticalAlignment: layout.VerticalAlignmentBottom,
+					})
+				}))
 			}))
 
 			co.WithChild("workspace", co.New(std.Container, func() {
