@@ -20,11 +20,12 @@ func NewEndpointEditor(eventBus *mvc.EventBus, id string) Editor {
 type EndpointEditor struct {
 	eventBus *mvc.EventBus
 
-	id     string
-	name   string
-	method string
-
-	uri string
+	id           string
+	name         string
+	method       string
+	uri          string
+	requestBody  string
+	responseBody string
 }
 
 func (e *EndpointEditor) ID() string {
@@ -77,6 +78,29 @@ func (e *EndpointEditor) SetURI(uri string) {
 	}
 }
 
+func (e *EndpointEditor) RequestBody() string {
+	return e.requestBody
+}
+
+func (e *EndpointEditor) SetRequestBody(body string) {
+	e.requestBody = body
+	// TODO: Notify
+}
+
+func (e *EndpointEditor) ResponseBody() string {
+	return e.responseBody
+}
+
+func (e *EndpointEditor) SetResponseBody(body string) {
+	if body != e.responseBody {
+		e.responseBody = body
+		e.eventBus.Notify(EndpointResponseBodyChangedEvent{
+			Editor: e,
+			Body:   body,
+		})
+	}
+}
+
 type EndpointNameChangedEvent struct {
 	Editor *EndpointEditor
 	Name   string
@@ -90,4 +114,9 @@ type EndpointMethodChangedEvent struct {
 type EndpointURIChangedEvent struct {
 	Editor *EndpointEditor
 	URI    string
+}
+
+type EndpointResponseBodyChangedEvent struct {
+	Editor *EndpointEditor
+	Body   string
 }

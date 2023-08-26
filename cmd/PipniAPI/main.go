@@ -12,6 +12,8 @@ func main() {
 	icon := fyneutil.Must(fyneutil.LoadResourceFromFS(resources.FS, "images/icon.png"))
 
 	a := app.NewWithID("com.mokiat.pipniapi")
+	a.SetIcon(icon)
+
 	w := a.NewWindow("PipniAPI")
 	pipniWindow := view.NewWindow(a, w)
 	w.SetMainMenu(pipniWindow.RenderMainMenu())

@@ -48,21 +48,36 @@ func (w *Window) newEndpointEditor(mdlEditor *model.EndpointEditor) fyne.CanvasO
 	}
 
 	w.eventBus.Subscribe(func(event mvc.Event) {
-		// TODO: Handle editor close and unsubscribe
+		// TODO: Handle editor close by unsubscribing and deleting widgets
 		switch event := event.(type) {
 		case model.EndpointMethodChangedEvent:
-			updateSelectedMethod(event.Method)
+			if event.Editor == mdlEditor {
+				updateSelectedMethod(event.Method)
+			}
 		case model.EndpointURIChangedEvent:
-			updateURIInput(event.URI)
+			if event.Editor == mdlEditor {
+				updateURIInput(event.URI)
+			}
 		}
-
 	})
 
 	top := container.NewBorder(nil, nil, methodSelectControl, goButton, uriInput)
 
+	requestBody := widget.NewMultiLineEntry()
+	requestBody.SetText("Hello World")
+
+	responseBody := widget.NewRichText()
+	responseBody.Segments = []widget.RichTextSegment{
+		&widget.TextSegment{
+			Style: widget.RichTextStyleInline,
+			Text:  "Response...",
+		},
+	}
+	responseBody.Refresh()
+
 	content := container.NewHSplit(
-		widget.NewLabel("Request ..."),
-		widget.NewLabel("Response ..."),
+		requestBody,
+		responseBody,
 	)
 	return container.NewBorder(top, nil, nil, nil, content)
 }
