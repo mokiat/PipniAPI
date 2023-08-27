@@ -17,11 +17,18 @@ var Application = co.Define(&applicationComponent{})
 type applicationComponent struct {
 	co.BaseComponent
 
+	mdlContext  *model.Context
 	mdlRegistry *model.Registry
 }
 
 func (c *applicationComponent) OnCreate() {
 	eventBus := co.TypedValue[*mvc.EventBus](c.Scope())
+
+	c.mdlContext = model.NewContext(eventBus, "context.json")
+	if err := c.mdlContext.Load(); err != nil {
+		panic(fmt.Errorf("error loading registry: %w", err)) // TODO: Show error dialog and continue with blank state.
+	}
+
 	c.mdlRegistry = model.NewRegistry(eventBus, "registry.json")
 	if err := c.mdlRegistry.Load(); err != nil {
 		panic(fmt.Errorf("error loading registry: %w", err)) // TODO: Show error dialog and continue with blank state.
@@ -73,6 +80,9 @@ func (c *applicationComponent) Render() co.Instance {
 				co.WithChild("environment-selection", co.New(EnvironmentSelection, func() {
 					co.WithLayoutData(layout.Data{
 						VerticalAlignment: layout.VerticalAlignmentTop,
+					})
+					co.WithData(EnvironmentSelectionData{
+						ContextModel: c.mdlContext,
 					})
 				}))
 
