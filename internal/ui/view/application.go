@@ -109,8 +109,41 @@ func (c *applicationComponent) Render() co.Instance {
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
 				co.WithData(std.ContainerData{
-					BackgroundColor: opt.V(ui.Green()),
+					Layout: layout.Frame(),
 				})
+
+				co.WithChild("tabbar", co.New(std.Tabbar, func() {
+					co.WithLayoutData(layout.Data{
+						VerticalAlignment: layout.VerticalAlignmentTop,
+					})
+
+					co.WithChild("tab-<id>", co.New(std.TabbarTab, func() {
+						co.WithData(std.TabbarTabData{
+							Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
+							Text:     "List Users",
+							Selected: true,
+						})
+					}))
+
+					co.WithChild("tab-<id2>", co.New(std.TabbarTab, func() {
+						co.WithData(std.TabbarTabData{
+							Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
+							Text:     "Get User",
+							Selected: false,
+						})
+					}))
+				}))
+
+				// TODO: Dynamic based on workspace model editor selection
+				co.WithChild("tabbar-editor-<id>", co.New(std.Container, func() {
+					co.WithLayoutData(layout.Data{
+						HorizontalAlignment: layout.HorizontalAlignmentCenter,
+						VerticalAlignment:   layout.VerticalAlignmentCenter,
+					})
+					co.WithData(std.ContainerData{
+						BackgroundColor: opt.V(ui.Purple()),
+					})
+				}))
 			}))
 
 		}))
