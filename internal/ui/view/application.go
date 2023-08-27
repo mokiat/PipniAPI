@@ -135,13 +135,10 @@ func (c *applicationComponent) Render() co.Instance {
 				}))
 
 				// TODO: Dynamic based on workspace model editor selection
-				co.WithChild("tabbar-editor-<id>", co.New(std.Container, func() {
+				co.WithChild("tabbar-editor-<id>", co.New(EndpointEditor, func() {
 					co.WithLayoutData(layout.Data{
 						HorizontalAlignment: layout.HorizontalAlignmentCenter,
 						VerticalAlignment:   layout.VerticalAlignmentCenter,
-					})
-					co.WithData(std.ContainerData{
-						BackgroundColor: opt.V(ui.Purple()),
 					})
 				}))
 			}))
