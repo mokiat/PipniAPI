@@ -1,0 +1,24 @@
+{
+  "endpoints": [
+    {
+      "id": "d12cce54-ccdc-47ea-bdbf-522cb3804270",
+      "name": "List Users",
+      "method": "GET",
+      "uri": "https://reqres.in/api/users",
+      "headers": []
+    },
+    {
+      "id": "b363849f-1cc7-4f5c-b894-9cb70eac537f",
+      "name": "Get User",
+      "method": "GET",
+      "uri": "https://reqres.in/api/users/2",
+      "headers": []
+    }
+  ],
+  "workflows": [
+    {
+      "id": "fabbd1ff-9129-4914-8016-2b0ce043a7a4",
+      "name": "Test User Endpoints"
+    }
+  ]
+}

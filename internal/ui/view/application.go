@@ -1,10 +1,14 @@
 package view
 
 import (
+	"fmt"
+
+	"github.com/mokiat/PipniAPI/internal/ui/model"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
+	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
 
@@ -12,6 +16,16 @@ var Application = co.Define(&applicationComponent{})
 
 type applicationComponent struct {
 	co.BaseComponent
+
+	mdlRegistry *model.Registry
+}
+
+func (c *applicationComponent) OnCreate() {
+	eventBus := co.TypedValue[*mvc.EventBus](c.Scope())
+	c.mdlRegistry = model.NewRegistry(eventBus, "registry.json")
+	if err := c.mdlRegistry.Load(); err != nil {
+		panic(fmt.Errorf("error loading registry: %w", err)) // TODO: Show error dialog and continue with blank state.
+	}
 }
 
 func (c *applicationComponent) Render() co.Instance {
@@ -66,6 +80,9 @@ func (c *applicationComponent) Render() co.Instance {
 					co.WithLayoutData(layout.Data{
 						HorizontalAlignment: layout.HorizontalAlignmentCenter,
 						VerticalAlignment:   layout.VerticalAlignmentCenter,
+					})
+					co.WithData(EndpointSelectionData{
+						RegistryModel: c.mdlRegistry,
 					})
 				}))
 

@@ -1,17 +1,30 @@
 package view
 
 import (
+	"github.com/mokiat/PipniAPI/internal/ui/model"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
+	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var EndpointSelection = co.Define(&endpointSelectionComponent{})
+var EndpointSelection = mvc.EventListener(co.Define(&endpointSelectionComponent{}))
+
+type EndpointSelectionData struct {
+	RegistryModel *model.Registry
+}
 
 type endpointSelectionComponent struct {
 	co.BaseComponent
+
+	mdlRegistry *model.Registry
+}
+
+func (c *endpointSelectionComponent) OnUpsert() {
+	data := co.GetData[EndpointSelectionData](c.Properties())
+	c.mdlRegistry = data.RegistryModel
 }
 
 func (c *endpointSelectionComponent) Render() co.Instance {
@@ -26,39 +39,54 @@ func (c *endpointSelectionComponent) Render() co.Instance {
 
 		co.WithChild("list", co.New(std.List, func() {
 
-			co.WithChild("item 01", co.New(EndpointItem, func() {
-				co.WithData(EndpointItemData{
-					Selected: true,
-					Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
-					Text:     "Create User",
-				})
-			}))
+			for _, endpoint := range c.mdlRegistry.Root().Endpoints() {
+				endpoint := endpoint
+				co.WithChild(endpoint.ID(), co.New(EndpointItem, func() {
+					co.WithData(EndpointItemData{
+						Selected: c.mdlRegistry.SelectedID() == endpoint.ID(),
+						Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
+						Text:     endpoint.Name(),
+					})
+					co.WithCallbackData(EndpointItemCallbackData{
+						OnClick: func() {
+							c.onEndpointSelected(endpoint)
+						},
+					})
+				}))
+			}
 
-			co.WithChild("item 02", co.New(EndpointItem, func() {
-				co.WithData(EndpointItemData{
-					Selected: false,
-					Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
-					Text:     "Update User",
-				})
-			}))
-
-			co.WithChild("item 03", co.New(EndpointItem, func() {
-				co.WithData(EndpointItemData{
-					Selected: false,
-					Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
-					Text:     "Delete User",
-				})
-			}))
-
-			co.WithChild("item 04", co.New(EndpointItem, func() {
-				co.WithData(EndpointItemData{
-					Selected: false,
-					Icon:     co.OpenImage(c.Scope(), "images/workflow.png"),
-					Text:     "User Test Scenario",
-				})
-			}))
+			for _, workflow := range c.mdlRegistry.Root().Workflows() {
+				workflow := workflow
+				co.WithChild(workflow.ID(), co.New(EndpointItem, func() {
+					co.WithData(EndpointItemData{
+						Selected: c.mdlRegistry.SelectedID() == workflow.ID(),
+						Icon:     co.OpenImage(c.Scope(), "images/workflow.png"),
+						Text:     workflow.Name(),
+					})
+					co.WithCallbackData(EndpointItemCallbackData{
+						OnClick: func() {
+							c.onWorkflowSelected(workflow)
+						},
+					})
+				}))
+			}
 		}))
 	})
+}
+
+func (c *endpointSelectionComponent) OnEvent(event mvc.Event) {
+	switch event.(type) {
+	case model.RegistrySelectionChangedEvent:
+		c.Invalidate()
+	}
+}
+
+func (c *endpointSelectionComponent) onEndpointSelected(endpoint *model.Endpoint) {
+	c.mdlRegistry.SetSelectedID(endpoint.ID())
+}
+
+func (c *endpointSelectionComponent) onWorkflowSelected(workflow *model.Workflow) {
+	c.mdlRegistry.SetSelectedID(workflow.ID())
 }
 
 var EndpointItem = co.Define(&endpointItemComponent{})
@@ -69,12 +97,18 @@ type EndpointItemData struct {
 	Text     string
 }
 
+type EndpointItemCallbackData struct {
+	OnClick std.OnActionFunc
+}
+
 type endpointItemComponent struct {
 	co.BaseComponent
 
 	selected bool
 	icon     *ui.Image
 	text     string
+
+	onClick std.OnActionFunc
 }
 
 func (c *endpointItemComponent) OnUpsert() {
@@ -82,6 +116,9 @@ func (c *endpointItemComponent) OnUpsert() {
 	c.selected = data.Selected
 	c.icon = data.Icon
 	c.text = data.Text
+
+	callbackData := co.GetCallbackData[EndpointItemCallbackData](c.Properties())
+	c.onClick = callbackData.OnClick
 }
 
 func (c *endpointItemComponent) Render() co.Instance {
@@ -91,6 +128,9 @@ func (c *endpointItemComponent) Render() co.Instance {
 		})
 		co.WithData(std.ListItemData{
 			Selected: c.selected,
+		})
+		co.WithCallbackData(std.ListItemCallbackData{
+			OnSelected: c.onClick,
 		})
 
 		co.WithChild("holder", co.New(std.Element, func() {
