@@ -3,6 +3,7 @@ package view
 import (
 	"net/http"
 
+	"github.com/mokiat/PipniAPI/internal/ui/model"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -11,6 +12,10 @@ import (
 )
 
 var EndpointEditor = co.Define(&endpointEditorComponent{})
+
+type EndpointEditorData struct {
+	EndpointModel *model.EndpointEditor
+}
 
 type endpointEditorComponent struct {
 	co.BaseComponent
@@ -43,6 +48,7 @@ func (c *endpointEditorComponent) Render() co.Instance {
 			co.WithChild("method", co.New(std.Dropdown, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentLeft,
+					Width:               opt.V(100),
 				})
 				co.WithData(std.DropdownData{
 					Items: []std.DropdownItem{
@@ -71,9 +77,10 @@ func (c *endpointEditorComponent) Render() co.Instance {
 			co.WithChild("go", co.New(std.Button, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentRight,
+					Width:               opt.V(100),
 				})
 				co.WithData(std.ButtonData{
-					Text: "GO",
+					Text: "GO", // TODO: Fix button to align text in the middle
 				})
 			}))
 		}))

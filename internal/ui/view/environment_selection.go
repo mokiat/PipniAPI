@@ -19,10 +19,13 @@ type EnvironmentSelectionData struct {
 type environmentSelectionComponent struct {
 	co.BaseComponent
 
+	eventBus   *mvc.EventBus
 	mdlContext *model.Context
 }
 
 func (c *environmentSelectionComponent) OnUpsert() {
+	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
+
 	data := co.GetData[EnvironmentSelectionData](c.Properties())
 	c.mdlContext = data.ContextModel
 }
@@ -68,6 +71,9 @@ func (c *environmentSelectionComponent) Render() co.Instance {
 			co.WithData(std.ButtonData{
 				Icon: co.OpenImage(c.Scope(), "images/settings.png"),
 			})
+			co.WithCallbackData(std.ButtonCallbackData{
+				OnClick: c.onSettingsClicked,
+			})
 		}))
 	})
 }
@@ -81,4 +87,10 @@ func (c *environmentSelectionComponent) OnEvent(event mvc.Event) {
 
 func (c *environmentSelectionComponent) onDropdownItemSelected(key any) {
 	c.mdlContext.SetSelectedID(key.(string))
+}
+
+func (c *environmentSelectionComponent) onSettingsClicked() {
+	c.eventBus.Notify(model.ContextEditorOpenEvent{
+		Context: c.mdlContext,
+	})
 }

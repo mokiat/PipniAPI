@@ -6,12 +6,13 @@ import (
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
-func NewEndpointEditor(eventBus *mvc.EventBus, id string) Editor {
+func NewEndpointEditor(eventBus *mvc.EventBus, endpoint *Endpoint) Editor {
 	return &EndpointEditor{
 		eventBus: eventBus,
+		endpoint: endpoint,
+		history:  NewHistory(eventBus),
 
-		id:     id,
-		name:   "Example",
+		// TODO: Initialize the following from mdlEndpoint once.
 		method: http.MethodGet,
 		uri:    "https://api.publicapis.org/entries",
 	}
@@ -19,35 +20,25 @@ func NewEndpointEditor(eventBus *mvc.EventBus, id string) Editor {
 
 type EndpointEditor struct {
 	eventBus *mvc.EventBus
+	endpoint *Endpoint
+	history  *History
 
-	id           string
-	name         string
 	method       string
 	uri          string
 	requestBody  string
 	responseBody string
 }
 
+func (e *EndpointEditor) History() *History {
+	return e.history
+}
+
 func (e *EndpointEditor) ID() string {
-	return e.id
+	return e.endpoint.ID()
 }
 
 func (e *EndpointEditor) Title() string {
-	return e.name
-}
-
-func (e *EndpointEditor) Name() string {
-	return e.name
-}
-
-func (e *EndpointEditor) SetName(name string) {
-	if name != e.name {
-		e.name = name
-		e.eventBus.Notify(EndpointNameChangedEvent{
-			Editor: e,
-			Name:   name,
-		})
-	}
+	return e.endpoint.Name()
 }
 
 func (e *EndpointEditor) Method() string {
@@ -99,11 +90,6 @@ func (e *EndpointEditor) SetResponseBody(body string) {
 			Body:   body,
 		})
 	}
-}
-
-type EndpointNameChangedEvent struct {
-	Editor *EndpointEditor
-	Name   string
 }
 
 type EndpointMethodChangedEvent struct {

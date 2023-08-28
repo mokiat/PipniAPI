@@ -10,6 +10,10 @@ import (
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
+type Resource interface {
+	ID() string
+}
+
 func NewRegistry(eventBus *mvc.EventBus, cfgFileName string) *Registry {
 	return &Registry{
 		eventBus:    eventBus,
@@ -74,6 +78,20 @@ func (r *Registry) Save() error {
 
 	// TODO
 
+	return nil
+}
+
+func (r *Registry) SelectedResource() Resource {
+	for _, endpoint := range r.root.endpoints {
+		if endpoint.id == r.selectedID {
+			return endpoint
+		}
+	}
+	for _, workflow := range r.root.workflows {
+		if workflow.id == r.selectedID {
+			return workflow
+		}
+	}
 	return nil
 }
 

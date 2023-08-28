@@ -12,27 +12,31 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Application = co.Define(&applicationComponent{})
+var Application = mvc.EventListener(co.Define(&applicationComponent{}))
 
 type applicationComponent struct {
 	co.BaseComponent
 
-	mdlContext  *model.Context
-	mdlRegistry *model.Registry
+	eventBus     *mvc.EventBus
+	mdlContext   *model.Context
+	mdlRegistry  *model.Registry
+	mdlWorkspace *model.Workspace
 }
 
 func (c *applicationComponent) OnCreate() {
-	eventBus := co.TypedValue[*mvc.EventBus](c.Scope())
+	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
 
-	c.mdlContext = model.NewContext(eventBus, "context.json")
+	c.mdlContext = model.NewContext(c.eventBus, "context.json")
 	if err := c.mdlContext.Load(); err != nil {
 		panic(fmt.Errorf("error loading registry: %w", err)) // TODO: Show error dialog and continue with blank state.
 	}
 
-	c.mdlRegistry = model.NewRegistry(eventBus, "registry.json")
+	c.mdlRegistry = model.NewRegistry(c.eventBus, "registry.json")
 	if err := c.mdlRegistry.Load(); err != nil {
 		panic(fmt.Errorf("error loading registry: %w", err)) // TODO: Show error dialog and continue with blank state.
 	}
+
+	c.mdlWorkspace = model.NewWorkspace(c.eventBus)
 }
 
 func (c *applicationComponent) Render() co.Instance {
@@ -103,46 +107,48 @@ func (c *applicationComponent) Render() co.Instance {
 				}))
 			}))
 
-			co.WithChild("workspace", co.New(std.Container, func() {
+			co.WithChild("workspace", co.New(Workspace, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentCenter,
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
-				co.WithData(std.ContainerData{
-					Layout: layout.Frame(),
+				co.WithData(WorkspaceData{
+					WorkspaceModel: c.mdlWorkspace,
 				})
-
-				co.WithChild("tabbar", co.New(std.Tabbar, func() {
-					co.WithLayoutData(layout.Data{
-						VerticalAlignment: layout.VerticalAlignmentTop,
-					})
-
-					co.WithChild("tab-<id>", co.New(std.TabbarTab, func() {
-						co.WithData(std.TabbarTabData{
-							Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
-							Text:     "List Users",
-							Selected: true,
-						})
-					}))
-
-					co.WithChild("tab-<id2>", co.New(std.TabbarTab, func() {
-						co.WithData(std.TabbarTabData{
-							Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
-							Text:     "Get User",
-							Selected: false,
-						})
-					}))
-				}))
-
-				// TODO: Dynamic based on workspace model editor selection
-				co.WithChild("tabbar-editor-<id>", co.New(EndpointEditor, func() {
-					co.WithLayoutData(layout.Data{
-						HorizontalAlignment: layout.HorizontalAlignmentCenter,
-						VerticalAlignment:   layout.VerticalAlignmentCenter,
-					})
-				}))
 			}))
-
 		}))
 	})
+}
+
+func (c *applicationComponent) OnEvent(event mvc.Event) {
+	switch event := event.(type) {
+	case model.RegistrySelectionChangedEvent:
+		c.openEditorForRegistryItem(event.SelectedID)
+	case model.EditorSelectedEvent:
+		c.selectResourceForEditor(event.Editor)
+	case model.ContextEditorOpenEvent:
+		c.openContextEditor()
+	}
+}
+
+func (c *applicationComponent) openEditorForRegistryItem(itemID string) {
+	resource := c.mdlRegistry.SelectedResource()
+	switch resource := resource.(type) {
+	case *model.Endpoint:
+		c.mdlWorkspace.OpenEditor(model.NewEndpointEditor(c.eventBus, resource))
+	case *model.Workflow:
+		c.mdlWorkspace.OpenEditor(model.NewWorkflowEditor(c.eventBus, resource))
+	}
+}
+
+func (c *applicationComponent) openContextEditor() {
+	c.mdlWorkspace.OpenEditor(model.NewContextEditor(c.eventBus, c.mdlContext))
+}
+
+func (c *applicationComponent) selectResourceForEditor(editor model.Editor) {
+	if editor != nil {
+		c.mdlRegistry.SetSelectedID(editor.ID())
+	} else {
+		c.mdlRegistry.SetSelectedID("")
+	}
 }
