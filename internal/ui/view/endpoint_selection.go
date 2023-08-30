@@ -1,7 +1,7 @@
 package view
 
 import (
-	"github.com/mokiat/PipniAPI/internal/ui/model"
+	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -13,13 +13,13 @@ import (
 var EndpointSelection = mvc.EventListener(co.Define(&endpointSelectionComponent{}))
 
 type EndpointSelectionData struct {
-	RegistryModel *model.Registry
+	RegistryModel *registrymodel.Registry
 }
 
 type endpointSelectionComponent struct {
 	co.BaseComponent
 
-	mdlRegistry *model.Registry
+	mdlRegistry *registrymodel.Registry
 }
 
 func (c *endpointSelectionComponent) OnUpsert() {
@@ -39,33 +39,17 @@ func (c *endpointSelectionComponent) Render() co.Instance {
 
 		co.WithChild("list", co.New(std.List, func() {
 
-			for _, endpoint := range c.mdlRegistry.Root().Endpoints() {
-				endpoint := endpoint
-				co.WithChild(endpoint.ID(), co.New(EndpointItem, func() {
+			for _, resource := range c.mdlRegistry.Root().Resources() {
+				resource := resource
+				co.WithChild(resource.ID(), co.New(EndpointItem, func() {
 					co.WithData(EndpointItemData{
-						Selected: c.mdlRegistry.SelectedID() == endpoint.ID(),
-						Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
-						Text:     endpoint.Name(),
+						Selected: c.mdlRegistry.SelectedID() == resource.ID(),
+						Icon:     c.resourceImage(resource),
+						Text:     resource.Name(),
 					})
 					co.WithCallbackData(EndpointItemCallbackData{
 						OnClick: func() {
-							c.onEndpointSelected(endpoint)
-						},
-					})
-				}))
-			}
-
-			for _, workflow := range c.mdlRegistry.Root().Workflows() {
-				workflow := workflow
-				co.WithChild(workflow.ID(), co.New(EndpointItem, func() {
-					co.WithData(EndpointItemData{
-						Selected: c.mdlRegistry.SelectedID() == workflow.ID(),
-						Icon:     co.OpenImage(c.Scope(), "images/workflow.png"),
-						Text:     workflow.Name(),
-					})
-					co.WithCallbackData(EndpointItemCallbackData{
-						OnClick: func() {
-							c.onWorkflowSelected(workflow)
+							c.onResourceSelected(resource)
 						},
 					})
 				}))
@@ -76,17 +60,26 @@ func (c *endpointSelectionComponent) Render() co.Instance {
 
 func (c *endpointSelectionComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
-	case model.RegistrySelectionChangedEvent:
+	case registrymodel.RegistrySelectionChangedEvent:
+		c.Invalidate()
+	case registrymodel.RegistryStructureChangedEvent:
 		c.Invalidate()
 	}
 }
 
-func (c *endpointSelectionComponent) onEndpointSelected(endpoint *model.Endpoint) {
-	c.mdlRegistry.SetSelectedID(endpoint.ID())
+func (c *endpointSelectionComponent) onResourceSelected(resource registrymodel.Resource) {
+	c.mdlRegistry.SetSelectedID(resource.ID())
 }
 
-func (c *endpointSelectionComponent) onWorkflowSelected(workflow *model.Workflow) {
-	c.mdlRegistry.SetSelectedID(workflow.ID())
+func (c *endpointSelectionComponent) resourceImage(resource registrymodel.Resource) *ui.Image {
+	switch resource.(type) {
+	case *registrymodel.Endpoint:
+		return co.OpenImage(c.Scope(), "images/ping.png")
+	case *registrymodel.Workflow:
+		return co.OpenImage(c.Scope(), "images/workflow.png")
+	default:
+		return nil
+	}
 }
 
 var EndpointItem = co.Define(&endpointItemComponent{})

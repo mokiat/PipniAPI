@@ -3,10 +3,11 @@ package model
 import (
 	"net/http"
 
+	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
-func NewEndpointEditor(eventBus *mvc.EventBus, endpoint *Endpoint) Editor {
+func NewEndpointEditor(eventBus *mvc.EventBus, endpoint *registrymodel.Endpoint) Editor {
 	return &EndpointEditor{
 		eventBus: eventBus,
 		endpoint: endpoint,
@@ -20,7 +21,7 @@ func NewEndpointEditor(eventBus *mvc.EventBus, endpoint *Endpoint) Editor {
 
 type EndpointEditor struct {
 	eventBus *mvc.EventBus
-	endpoint *Endpoint
+	endpoint *registrymodel.Endpoint
 	history  *History
 
 	method       string

@@ -1,8 +1,10 @@
 package view
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
 	"github.com/mokiat/PipniAPI/internal/ui/model"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
@@ -19,7 +21,7 @@ type applicationComponent struct {
 
 	eventBus     *mvc.EventBus
 	mdlContext   *model.Context
-	mdlRegistry  *model.Registry
+	mdlRegistry  *registrymodel.Registry
 	mdlWorkspace *model.Workspace
 }
 
@@ -31,9 +33,12 @@ func (c *applicationComponent) OnCreate() {
 		panic(fmt.Errorf("error loading registry: %w", err)) // TODO: Show error dialog and continue with blank state.
 	}
 
-	c.mdlRegistry = model.NewRegistry(c.eventBus, "registry.json")
+	c.mdlRegistry = registrymodel.NewRegistry(c.eventBus, "registry.json")
 	if err := c.mdlRegistry.Load(); err != nil {
-		panic(fmt.Errorf("error loading registry: %w", err)) // TODO: Show error dialog and continue with blank state.
+		c.mdlRegistry.Clear() // start with blank
+		if !errors.Is(err, registrymodel.ErrRegistryNotFound) {
+			panic("TODO: Show error message dialog")
+		}
 	}
 
 	c.mdlWorkspace = model.NewWorkspace(c.eventBus)
@@ -122,7 +127,7 @@ func (c *applicationComponent) Render() co.Instance {
 
 func (c *applicationComponent) OnEvent(event mvc.Event) {
 	switch event := event.(type) {
-	case model.RegistrySelectionChangedEvent:
+	case registrymodel.RegistrySelectionChangedEvent:
 		c.openEditorForRegistryItem(event.SelectedID)
 	case model.EditorSelectedEvent:
 		c.selectResourceForEditor(event.Editor)
@@ -132,11 +137,11 @@ func (c *applicationComponent) OnEvent(event mvc.Event) {
 }
 
 func (c *applicationComponent) openEditorForRegistryItem(itemID string) {
-	resource := c.mdlRegistry.SelectedResource()
+	resource := c.mdlRegistry.Root().FindResource(itemID)
 	switch resource := resource.(type) {
-	case *model.Endpoint:
+	case *registrymodel.Endpoint:
 		c.mdlWorkspace.OpenEditor(model.NewEndpointEditor(c.eventBus, resource))
-	case *model.Workflow:
+	case *registrymodel.Workflow:
 		c.mdlWorkspace.OpenEditor(model.NewWorkflowEditor(c.eventBus, resource))
 	}
 }

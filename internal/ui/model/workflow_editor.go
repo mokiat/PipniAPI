@@ -1,8 +1,11 @@
 package model
 
-import "github.com/mokiat/lacking/ui/mvc"
+import (
+	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
+	"github.com/mokiat/lacking/ui/mvc"
+)
 
-func NewWorkflowEditor(eventBus *mvc.EventBus, workflow *Workflow) Editor {
+func NewWorkflowEditor(eventBus *mvc.EventBus, workflow *registrymodel.Workflow) Editor {
 	return &WorkflowEditor{
 		eventBus: eventBus,
 		workflow: workflow,
@@ -11,7 +14,7 @@ func NewWorkflowEditor(eventBus *mvc.EventBus, workflow *Workflow) Editor {
 
 type WorkflowEditor struct {
 	eventBus *mvc.EventBus
-	workflow *Workflow
+	workflow *registrymodel.Workflow
 }
 
 func (e *WorkflowEditor) ID() string {
