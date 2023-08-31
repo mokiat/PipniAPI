@@ -104,7 +104,7 @@ func (c *endpointEditorComponent) Render() co.Instance {
 					Padding:         ui.UniformSpacing(5),
 					BorderColor:     opt.V(std.OutlineColor),
 					BorderSize:      ui.UniformSpacing(1),
-					BackgroundColor: opt.V(ui.Red()),
+					BackgroundColor: opt.V(ui.Gray()),
 				})
 			}))
 
@@ -117,7 +117,7 @@ func (c *endpointEditorComponent) Render() co.Instance {
 					Padding:         ui.UniformSpacing(5),
 					BorderColor:     opt.V(std.OutlineColor),
 					BorderSize:      ui.UniformSpacing(1),
-					BackgroundColor: opt.V(ui.Green()),
+					BackgroundColor: opt.V(ui.Gray()),
 				})
 			}))
 		}))

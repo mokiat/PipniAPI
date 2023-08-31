@@ -50,6 +50,56 @@ func (r *Registry) SetSelectedID(selectedID string) {
 	}
 }
 
+func (r *Registry) FindSelectedResource() Resource {
+	return r.root.FindResource(r.selectedID)
+}
+
+func (r *Registry) CanMoveUp(resource Resource) bool {
+	if resource == nil {
+		return false
+	}
+	// TODO: Once there is nesting of containers, this should be more
+	// complicated and consider the whole tree and not just the container
+	// (e.g. can the resource move to an upper sibling container)
+	container := resource.Container()
+	position := container.ResourcePosition(resource)
+	return position > 0
+}
+
+func (r *Registry) MoveUp(resource Resource) {
+	if resource == nil {
+		return
+	}
+	container := resource.Container()
+	container.MoveResourceUp(resource)
+	r.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: r,
+	})
+}
+
+func (r *Registry) CanMoveDown(resource Resource) bool {
+	if resource == nil {
+		return false
+	}
+	// TODO: Once there is nesting of containers, this should be more
+	// complicated and consider the whole tree and not just the container
+	// (e.g. can the resource move to a lower sibling container)
+	container := resource.Container()
+	position := container.ResourcePosition(resource)
+	return position < len(container.Resources())-1
+}
+
+func (r *Registry) MoveDown(resource Resource) {
+	if resource == nil {
+		return
+	}
+	container := resource.Container()
+	container.MoveResourceDown(resource)
+	r.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: r,
+	})
+}
+
 func (r *Registry) Load() error {
 	file, err := os.Open(r.cfgFileName)
 	if err != nil {
@@ -74,7 +124,6 @@ func (r *Registry) Load() error {
 }
 
 func (r *Registry) Save() error {
-	// NOTE: Do this first in order to reduce failure chances.
 	dtoRegistry := toDTO(r.root)
 
 	file, err := os.Create(r.cfgFileName)

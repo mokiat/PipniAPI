@@ -3,8 +3,9 @@ package registrymodel
 var _ Resource = (*Endpoint)(nil)
 
 type Endpoint struct {
-	id   string
-	name string
+	id        string
+	name      string
+	container Container
 }
 
 func (e *Endpoint) ID() string {
@@ -17,4 +18,8 @@ func (e *Endpoint) Name() string {
 
 func (e *Endpoint) SetName(name string) {
 	e.name = name
+}
+
+func (e *Endpoint) Container() Container {
+	return e.container
 }

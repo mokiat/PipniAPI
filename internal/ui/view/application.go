@@ -109,6 +109,9 @@ func (c *applicationComponent) Render() co.Instance {
 					co.WithLayoutData(layout.Data{
 						VerticalAlignment: layout.VerticalAlignmentBottom,
 					})
+					co.WithData(EndpointManagementData{
+						RegistryModel: c.mdlRegistry,
+					})
 				}))
 			}))
 

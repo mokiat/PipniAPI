@@ -7,38 +7,61 @@ import (
 
 func fromDTO(dtoRegistry *storage.RegistryDTO) Container {
 	positions := make(map[string]int)
-	resources := make([]Resource, 0, len(dtoRegistry.Endpoints)+len(dtoRegistry.Workflows))
+
+	root := &standardContainer{
+		id:        RootContainerID,
+		name:      "Root",
+		children:  nil,
+		resources: make([]Resource, 0, len(dtoRegistry.Endpoints)+len(dtoRegistry.Workflows)),
+	}
 
 	for _, dtoEndpoint := range dtoRegistry.Endpoints {
 		positions[dtoEndpoint.ID] = dtoEndpoint.Position
-		resources = append(resources, &Endpoint{
-			id:   dtoEndpoint.ID,
-			name: dtoEndpoint.Name,
+		root.resources = append(root.resources, &Endpoint{
+			id:        dtoEndpoint.ID,
+			name:      dtoEndpoint.Name,
+			container: root,
 			// TODO: more fields
 		})
 	}
 
 	for _, dtoWorkflow := range dtoRegistry.Workflows {
 		positions[dtoWorkflow.ID] = dtoWorkflow.Position
-		resources = append(resources, &Workflow{
-			id:   dtoWorkflow.ID,
-			name: dtoWorkflow.Name,
+		root.resources = append(root.resources, &Workflow{
+			id:        dtoWorkflow.ID,
+			name:      dtoWorkflow.Name,
+			container: root,
 			// TODO: more fields
 		})
 	}
 
-	slices.SortFunc(resources, func(a, b Resource) int {
+	slices.SortFunc(root.resources, func(a, b Resource) int {
 		return positions[a.ID()] - positions[b.ID()]
 	})
 
-	return &standardContainer{
-		id:        RootContainerID,
-		name:      "Root",
-		children:  nil,
-		resources: resources,
-	}
+	return root
 }
 
 func toDTO(root Container) *storage.RegistryDTO {
-	panic("TODO")
+	result := &storage.RegistryDTO{}
+	for i, resource := range root.Resources() {
+		switch resource := resource.(type) {
+		case *Endpoint:
+			result.Endpoints = append(result.Endpoints, storage.EndpointDTO{
+				ID:       resource.id,
+				FolderID: "", // Currently only root
+				Name:     resource.name,
+				Position: i,
+				// TODO: More params
+			})
+		case *Workflow:
+			result.Workflows = append(result.Workflows, storage.WorkflowDTO{
+				ID:       resource.id,
+				FolderID: "", // Currently only root
+				Name:     resource.name,
+				Position: i,
+			})
+		}
+	}
+	return result
 }
