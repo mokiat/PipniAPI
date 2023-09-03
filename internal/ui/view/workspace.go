@@ -1,6 +1,8 @@
 package view
 
 import (
+	"fmt"
+
 	"github.com/mokiat/PipniAPI/internal/ui/model"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -59,13 +61,22 @@ func (c *workspaceComponent) Render() co.Instance {
 			}
 		}))
 
-		// TODO: Dynamic based on workspace model editor selection
-		co.WithChild("tabbar-editor-<id>", co.New(EndpointEditor, func() {
-			co.WithLayoutData(layout.Data{
-				HorizontalAlignment: layout.HorizontalAlignmentCenter,
-				VerticalAlignment:   layout.VerticalAlignmentCenter,
-			})
-		}))
+		if activeEditor := c.mdlWorkspace.ActiveEditor(); activeEditor != nil {
+			// TODO: Dynamic type based on workspace model editor selection
+			co.WithChild(fmt.Sprintf("tabbar-editor-%s", activeEditor.ID()), co.New(EndpointEditor, func() {
+				co.WithLayoutData(layout.Data{
+					HorizontalAlignment: layout.HorizontalAlignmentCenter,
+					VerticalAlignment:   layout.VerticalAlignmentCenter,
+				})
+			}))
+		} else {
+			co.WithChild("welcome-screen", co.New(WelcomeScreen, func() {
+				co.WithLayoutData(layout.Data{
+					HorizontalAlignment: layout.HorizontalAlignmentCenter,
+					VerticalAlignment:   layout.VerticalAlignmentCenter,
+				})
+			}))
+		}
 	})
 }
 
