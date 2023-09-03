@@ -5,3 +5,10 @@ type Resource interface {
 	Name() string
 	Container() Container
 }
+
+type ResourceKind string
+
+const (
+	ResourceKindEndpoint ResourceKind = "endpoint"
+	ResourceKindWorkflow ResourceKind = "workflow"
+)

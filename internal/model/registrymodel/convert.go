@@ -49,7 +49,7 @@ func toDTO(root Container) *storage.RegistryDTO {
 		case *Endpoint:
 			result.Endpoints = append(result.Endpoints, storage.EndpointDTO{
 				ID:       resource.id,
-				FolderID: "", // Currently only root
+				FolderID: nil, // Currently only root
 				Name:     resource.name,
 				Position: i,
 				// TODO: More params
@@ -57,7 +57,7 @@ func toDTO(root Container) *storage.RegistryDTO {
 		case *Workflow:
 			result.Workflows = append(result.Workflows, storage.WorkflowDTO{
 				ID:       resource.id,
-				FolderID: "", // Currently only root
+				FolderID: nil, // Currently only root
 				Name:     resource.name,
 				Position: i,
 			})

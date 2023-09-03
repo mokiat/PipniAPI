@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/mokiat/PipniAPI/internal/storage"
+	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
@@ -98,6 +100,35 @@ func (r *Registry) MoveDown(resource Resource) {
 	r.eventBus.Notify(RegistryStructureChangedEvent{
 		Registry: r,
 	})
+}
+
+func (r *Registry) CreateResource(parent Container, name string, kind ResourceKind) {
+	var resource Resource
+	switch kind {
+	case ResourceKindEndpoint:
+		resource = &Endpoint{
+			container: parent,
+			id:        uuid.Must(uuid.NewRandom()).String(),
+			name:      name,
+			// TODO: Initialize more props. Or maybe consider a newEndpoint function
+		}
+	case ResourceKindWorkflow:
+		resource = &Workflow{
+			container: parent,
+			id:        uuid.Must(uuid.NewRandom()).String(),
+			name:      name,
+			// TODO: Initialize more props. Or maybe consider a newWorkflow function
+		}
+	default:
+		log.Warn("Unknown resource kind %q", kind)
+		return
+	}
+	parent.AppendResource(resource)
+
+	r.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: r,
+	})
+	r.SetSelectedID(resource.ID())
 }
 
 func (r *Registry) Load() error {

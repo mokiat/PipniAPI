@@ -4,6 +4,7 @@ type Container interface {
 	ID() string
 	Name() string
 	Resources() []Resource
+	AppendResource(resource Resource)
 	FindResource(id string) Resource
 	ResourcePosition(resource Resource) int
 	MoveResourceUp(resource Resource)
@@ -34,6 +35,10 @@ func (c *standardContainer) Name() string {
 
 func (c *standardContainer) Resources() []Resource {
 	return c.resources
+}
+
+func (c *standardContainer) AppendResource(resource Resource) {
+	c.resources = append(c.resources, resource)
 }
 
 func (c *standardContainer) FindResource(id string) Resource {

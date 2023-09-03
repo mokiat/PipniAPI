@@ -30,6 +30,7 @@ func (c *endpointManagementComponent) OnUpsert() {
 func (c *endpointManagementComponent) Render() co.Instance {
 	resource := c.mdlRegistry.FindSelectedResource()
 	canEdit := resource != nil
+	canClone := resource != nil
 	canDelete := resource != nil
 	canMoveUp := c.mdlRegistry.CanMoveUp(resource)
 	canMoveDown := c.mdlRegistry.CanMoveDown(resource)
@@ -47,6 +48,9 @@ func (c *endpointManagementComponent) Render() co.Instance {
 			co.WithData(std.ButtonData{
 				Icon: co.OpenImage(c.Scope(), "images/add.png"),
 			})
+			co.WithCallbackData(std.ButtonCallbackData{
+				OnClick: c.openAddResourceModal,
+			})
 		}))
 
 		co.WithChild("edit", co.New(std.Button, func() {
@@ -54,12 +58,28 @@ func (c *endpointManagementComponent) Render() co.Instance {
 				Icon:    co.OpenImage(c.Scope(), "images/edit.png"),
 				Enabled: opt.V(canEdit),
 			})
+			co.WithCallbackData(std.ButtonCallbackData{
+				OnClick: c.editResource,
+			})
+		}))
+
+		co.WithChild("clone", co.New(std.Button, func() {
+			co.WithData(std.ButtonData{
+				Icon:    co.OpenImage(c.Scope(), "images/duplicate.png"),
+				Enabled: opt.V(canClone),
+			})
+			co.WithCallbackData(std.ButtonCallbackData{
+				OnClick: c.cloneResource,
+			})
 		}))
 
 		co.WithChild("delete", co.New(std.Button, func() {
 			co.WithData(std.ButtonData{
 				Icon:    co.OpenImage(c.Scope(), "images/delete.png"),
 				Enabled: opt.V(canDelete),
+			})
+			co.WithCallbackData(std.ButtonCallbackData{
+				OnClick: c.deleteResource,
 			})
 		}))
 
@@ -98,6 +118,38 @@ func (c *endpointManagementComponent) OnEvent(event mvc.Event) {
 	case registrymodel.RegistryStructureChangedEvent:
 		c.Invalidate()
 	}
+}
+
+func (c *endpointManagementComponent) openAddResourceModal() {
+	co.OpenOverlay(c.Scope(), co.New(ResourceModal, func() {
+		co.WithData(ResourceModalData{
+			Name:          "",
+			Kind:          registrymodel.ResourceKindEndpoint,
+			CanChangeKind: true,
+		})
+		co.WithCallbackData(ResourceModalCallbackData{
+			OnApply: c.addResource,
+		})
+	}))
+}
+
+func (c *endpointManagementComponent) addResource(name string, kind registrymodel.ResourceKind) {
+	c.mdlRegistry.CreateResource(c.mdlRegistry.Root(), name, kind)
+	if err := c.mdlRegistry.Save(); err != nil {
+		panic(err) // TODO: Display error message
+	}
+}
+
+func (c *endpointManagementComponent) editResource() {
+
+}
+
+func (c *endpointManagementComponent) cloneResource() {
+
+}
+
+func (c *endpointManagementComponent) deleteResource() {
+
 }
 
 func (c *endpointManagementComponent) moveSelectionUp() {

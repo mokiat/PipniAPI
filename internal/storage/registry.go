@@ -35,7 +35,7 @@ type FolderDTO struct {
 
 type EndpointDTO struct {
 	ID       string      `json:"id"`
-	FolderID string      `json:"folder_id"`
+	FolderID *string     `json:"folder_id,omitempty"`
 	Name     string      `json:"name"`
 	Position int         `json:"position"`
 	Method   string      `json:"method"`
@@ -50,8 +50,8 @@ type HeaderDTO struct {
 }
 
 type WorkflowDTO struct {
-	ID       string `json:"id"`
-	FolderID string `json:"folder_id"`
-	Name     string `json:"name"`
-	Position int    `json:"position"`
+	ID       string  `json:"id"`
+	FolderID *string `json:"folder_id,omitempty"`
+	Name     string  `json:"name"`
+	Position int     `json:"position"`
 }
