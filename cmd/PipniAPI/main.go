@@ -32,7 +32,7 @@ func runApplication() error {
 
 	cfg := glapp.NewConfig("Pipni API", 1024, 768)
 	cfg.SetMaximized(true)
-	cfg.SetMinSize(800, 600)
+	cfg.SetMinSize(1024, 768)
 	cfg.SetVSync(true)
 	cfg.SetIcon("images/icon.png")
 	cfg.SetLocator(locator)

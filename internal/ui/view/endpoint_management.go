@@ -63,7 +63,7 @@ func (c *endpointManagementComponent) Render() co.Instance {
 			})
 			co.WithCallbackData(std.ButtonCallbackData{
 				OnClick: func() {
-					c.editResource(resource)
+					c.openEditResourceModal(resource)
 				},
 			})
 		}))
@@ -146,7 +146,7 @@ func (c *endpointManagementComponent) openAddResourceModal() {
 	}))
 }
 
-func (c *endpointManagementComponent) editResource(resource registrymodel.Resource) {
+func (c *endpointManagementComponent) openEditResourceModal(resource registrymodel.Resource) {
 	co.OpenOverlay(c.Scope(), co.New(ResourceModal, func() {
 		co.WithData(ResourceModalData{
 			Name:          resource.Name(),

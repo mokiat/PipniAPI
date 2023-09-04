@@ -36,7 +36,7 @@ func (c *welcomeEditorComponent) Render() co.Instance {
 	return co.New(std.Container, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ContainerData{
-			Padding:         ui.UniformSpacing(100),
+			Padding:         ui.UniformSpacing(5),
 			BackgroundColor: opt.V(std.SurfaceColor),
 			Layout:          layout.Fill(),
 		})
@@ -44,7 +44,7 @@ func (c *welcomeEditorComponent) Render() co.Instance {
 		co.WithChild("info", co.New(std.Label, func() {
 			co.WithData(std.LabelData{
 				Font:      co.OpenFont(c.Scope(), "ui:///roboto-regular.ttf"),
-				FontSize:  opt.V(float32(32.0)),
+				FontSize:  opt.V(float32(24.0)),
 				FontColor: opt.V(std.OnSurfaceColor),
 				Text:      welcomeMessage,
 			})
