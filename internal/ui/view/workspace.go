@@ -3,6 +3,7 @@ package view
 import (
 	"fmt"
 
+	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
 	"github.com/mokiat/PipniAPI/internal/ui/model"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -54,7 +55,7 @@ func (c *workspaceComponent) Render() co.Instance {
 							c.selectEditor(editor)
 						},
 						OnClose: func() {
-							c.closeEditor(editor)
+							c.closeEditor(editor, false)
 						},
 					})
 				}))
@@ -81,13 +82,15 @@ func (c *workspaceComponent) Render() co.Instance {
 }
 
 func (c *workspaceComponent) OnEvent(event mvc.Event) {
-	switch event.(type) {
+	switch event := event.(type) {
 	case model.EditorSelectedEvent:
 		c.Invalidate()
 	case model.EditorAddedEvent:
 		c.Invalidate()
 	case model.EditorRemovedEvent:
 		c.Invalidate()
+	case registrymodel.RegistryResourceRemovedEvent:
+		c.closeEditorForResource(event.Resource)
 	}
 }
 
@@ -108,7 +111,15 @@ func (c *workspaceComponent) selectEditor(editor model.Editor) {
 	c.mdlWorkspace.SetActiveEditor(editor)
 }
 
-func (c *workspaceComponent) closeEditor(editor model.Editor) {
+func (c *workspaceComponent) closeEditor(editor model.Editor, force bool) {
 	// TODO: Check if dirty and open a confirmation dialog if dirty.
 	c.mdlWorkspace.CloseEditor(editor)
+}
+
+func (c *workspaceComponent) closeEditorForResource(resource registrymodel.Resource) {
+	for _, editor := range c.mdlWorkspace.Editors() {
+		if editor.ID() == resource.ID() {
+			c.closeEditor(editor, true)
+		}
+	}
 }

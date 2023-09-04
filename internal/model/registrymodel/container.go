@@ -1,10 +1,13 @@
 package registrymodel
 
+import "golang.org/x/exp/slices"
+
 type Container interface {
 	ID() string
 	Name() string
 	Resources() []Resource
 	AppendResource(resource Resource)
+	RemoveResource(resource Resource)
 	FindResource(id string) Resource
 	ResourcePosition(resource Resource) int
 	MoveResourceUp(resource Resource)
@@ -39,6 +42,12 @@ func (c *standardContainer) Resources() []Resource {
 
 func (c *standardContainer) AppendResource(resource Resource) {
 	c.resources = append(c.resources, resource)
+}
+
+func (c *standardContainer) RemoveResource(resource Resource) {
+	c.resources = slices.DeleteFunc(c.resources, func(candidate Resource) bool {
+		return candidate == resource
+	})
 }
 
 func (c *standardContainer) FindResource(id string) Resource {

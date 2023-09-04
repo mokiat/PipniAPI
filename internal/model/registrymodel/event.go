@@ -13,3 +13,8 @@ type RegistryResourceNameChangedEvent struct {
 	Registry *Registry
 	Resource Resource
 }
+
+type RegistryResourceRemovedEvent struct {
+	Registry *Registry
+	Resource Resource
+}

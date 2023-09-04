@@ -1,6 +1,8 @@
 package view
 
 import (
+	"fmt"
+
 	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
@@ -59,7 +61,9 @@ func (c *endpointManagementComponent) Render() co.Instance {
 				Enabled: opt.V(canEdit),
 			})
 			co.WithCallbackData(std.ButtonCallbackData{
-				OnClick: c.editResource,
+				OnClick: func() {
+					c.editResource(resource)
+				},
 			})
 		}))
 
@@ -81,7 +85,9 @@ func (c *endpointManagementComponent) Render() co.Instance {
 				Enabled: opt.V(canDelete),
 			})
 			co.WithCallbackData(std.ButtonCallbackData{
-				OnClick: c.deleteResource,
+				OnClick: func() {
+					c.openDeleteResourceModal(resource)
+				},
 			})
 		}))
 
@@ -97,7 +103,9 @@ func (c *endpointManagementComponent) Render() co.Instance {
 				Enabled: opt.V(canMoveUp),
 			})
 			co.WithCallbackData(std.ButtonCallbackData{
-				OnClick: c.moveSelectionUp,
+				OnClick: func() {
+					c.moveResourceUp(resource)
+				},
 			})
 		}))
 
@@ -107,7 +115,9 @@ func (c *endpointManagementComponent) Render() co.Instance {
 				Enabled: opt.V(canMoveDown),
 			})
 			co.WithCallbackData(std.ButtonCallbackData{
-				OnClick: c.moveSelectionDown,
+				OnClick: func() {
+					c.moveResourceDown(resource)
+				},
 			})
 		}))
 	})
@@ -135,16 +145,7 @@ func (c *endpointManagementComponent) openAddResourceModal() {
 	}))
 }
 
-func (c *endpointManagementComponent) addResource(name string, kind registrymodel.ResourceKind) {
-	c.mdlRegistry.CreateResource(c.mdlRegistry.Root(), name, kind)
-	if err := c.mdlRegistry.Save(); err != nil {
-		panic(err) // TODO: Display error message
-	}
-}
-
-func (c *endpointManagementComponent) editResource() {
-	resource := c.mdlRegistry.FindSelectedResource()
-
+func (c *endpointManagementComponent) editResource(resource registrymodel.Resource) {
 	co.OpenOverlay(c.Scope(), co.New(ResourceModal, func() {
 		co.WithData(ResourceModalData{
 			Name:          resource.Name(),
@@ -159,33 +160,51 @@ func (c *endpointManagementComponent) editResource() {
 	}))
 }
 
+func (c *endpointManagementComponent) openDeleteResourceModal(resource registrymodel.Resource) {
+	co.OpenOverlay(c.Scope(), co.New(ConfirmationModal, func() {
+		co.WithData(ConfirmationModalData{
+			Icon: co.OpenImage(c.Scope(), "images/warning.png"),
+			Text: fmt.Sprintf("Are you sure you want to delete the following resource:\n\n\n%q\n\n\nThis cannot be undone!", resource.Name()),
+		})
+		co.WithCallbackData(ConfirmationModalCallbackData{
+			OnApply: func() {
+				c.deleteResource(resource)
+			},
+		})
+	}))
+}
+
+func (c *endpointManagementComponent) addResource(name string, kind registrymodel.ResourceKind) {
+	c.mdlRegistry.CreateResource(c.mdlRegistry.Root(), name, kind)
+	c.saveChanges()
+}
+
 func (c *endpointManagementComponent) renameResource(resource registrymodel.Resource, name string) {
 	c.mdlRegistry.RenameResource(resource, name)
-	if err := c.mdlRegistry.Save(); err != nil {
-		panic(err) // TODO: Display error message
-	}
+	c.saveChanges()
 }
 
 func (c *endpointManagementComponent) cloneResource(resource registrymodel.Resource) {
 	c.mdlRegistry.CloneResource(resource)
-	if err := c.mdlRegistry.Save(); err != nil {
-		panic(err) // TODO: Display error message
-	}
+	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) deleteResource() {
-
+func (c *endpointManagementComponent) deleteResource(resource registrymodel.Resource) {
+	c.mdlRegistry.DeleteResource(resource)
+	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) moveSelectionUp() {
-	c.mdlRegistry.MoveUp(c.mdlRegistry.FindSelectedResource())
-	if err := c.mdlRegistry.Save(); err != nil {
-		panic(err) // TODO: Display error message
-	}
+func (c *endpointManagementComponent) moveResourceUp(resource registrymodel.Resource) {
+	c.mdlRegistry.MoveUp(resource)
+	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) moveSelectionDown() {
-	c.mdlRegistry.MoveDown(c.mdlRegistry.FindSelectedResource())
+func (c *endpointManagementComponent) moveResourceDown(resource registrymodel.Resource) {
+	c.mdlRegistry.MoveDown(resource)
+	c.saveChanges()
+}
+
+func (c *endpointManagementComponent) saveChanges() {
 	if err := c.mdlRegistry.Save(); err != nil {
 		panic(err) // TODO: Display error message
 	}

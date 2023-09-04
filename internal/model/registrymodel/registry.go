@@ -148,6 +148,18 @@ func (r *Registry) CloneResource(resource Resource) {
 	})
 }
 
+func (r *Registry) DeleteResource(resource Resource) {
+	parent := resource.Container()
+	parent.RemoveResource(resource)
+	r.eventBus.Notify(RegistryResourceRemovedEvent{
+		Registry: r,
+		Resource: resource,
+	})
+	r.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: r,
+	})
+}
+
 func (r *Registry) Load() error {
 	file, err := os.Open(r.cfgFileName)
 	if err != nil {
