@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	ContextEditorID = "23dd8654-7af0-4a40-b63d-18211a7fa838"
+	EditorID = "23dd8654-7af0-4a40-b63d-18211a7fa838"
 )
 
 func NewEditor(eventBus *mvc.EventBus, model *Model) workspace.Editor {
@@ -25,7 +25,7 @@ type Editor struct {
 }
 
 func (e *Editor) ID() string {
-	return ContextEditorID
+	return EditorID
 }
 
 func (e *Editor) Name() string {

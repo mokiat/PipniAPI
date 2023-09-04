@@ -4,6 +4,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/gog"
+	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -93,14 +94,26 @@ func (c *environmentSelectionComponent) OnEvent(event mvc.Event) {
 }
 
 func (c *environmentSelectionComponent) onDropdownItemSelected(key any) {
-	environment := c.mdlContext.FindEnvironment(key.(string))
-	c.mdlContext.SelectEnvironment(environment)
+	c.mdlContext.SetSelectedID(key.(string))
+	c.saveChanges()
 }
 
 func (c *environmentSelectionComponent) onSettingsClicked() {
-	if editor := c.mdlWorkspace.FindEditor(context.ContextEditorID); editor != nil {
-		c.mdlWorkspace.SelectEditor(editor)
+	if editor := c.mdlWorkspace.FindEditor(context.EditorID); editor != nil {
+		c.mdlWorkspace.SetSelectedID(editor.ID())
 	} else {
 		c.mdlWorkspace.AppendEditor(context.NewEditor(c.eventBus, c.mdlContext))
+	}
+}
+
+func (c *environmentSelectionComponent) saveChanges() {
+	if err := c.mdlContext.Save(); err != nil {
+		log.Error("Error saving context: %v", err)
+		co.OpenOverlay(c.Scope(), co.New(NotificationModal, func() {
+			co.WithData(NotificationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/error.png"),
+				Text: "The program encountered an error.\n\nChanges could not be saved.\n\nCheck logs for more information.",
+			})
+		}))
 	}
 }

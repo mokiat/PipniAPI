@@ -14,8 +14,8 @@ func NewModel(eventBus *mvc.EventBus) *Model {
 type Model struct {
 	eventBus *mvc.EventBus
 
-	editors        []Editor
-	selectedEditor Editor
+	editors    []Editor
+	selectedID string
 }
 
 func (m *Model) Editors() []Editor {
@@ -39,7 +39,7 @@ func (m *Model) FindEditor(id string) Editor {
 
 func (m *Model) AppendEditor(editor Editor) {
 	if existing := m.FindEditor(editor.ID()); existing != nil {
-		m.SelectEditor(existing)
+		m.SetSelectedID(existing.ID())
 		return
 	}
 
@@ -49,7 +49,7 @@ func (m *Model) AppendEditor(editor Editor) {
 		Editor: editor,
 	})
 
-	m.SelectEditor(editor)
+	m.SetSelectedID(editor.ID())
 }
 
 func (m *Model) RemoveEditor(editor Editor) {
@@ -58,13 +58,13 @@ func (m *Model) RemoveEditor(editor Editor) {
 		return
 	}
 
-	if m.selectedEditor == editor {
+	if m.selectedID == editor.ID() {
 		if index > 0 {
-			m.SelectEditor(m.editors[index-1])
+			m.SetSelectedID(m.editors[index-1].ID())
 		} else if len(m.editors) > 1 {
-			m.SelectEditor(m.editors[1])
+			m.SetSelectedID(m.editors[1].ID())
 		} else {
-			m.SelectEditor(nil)
+			m.SetSelectedID("")
 		}
 	}
 
@@ -77,16 +77,20 @@ func (m *Model) RemoveEditor(editor Editor) {
 	})
 }
 
-func (m *Model) SelectedEditor() Editor {
-	return m.selectedEditor
+func (m *Model) SelectedID() string {
+	return m.selectedID
 }
 
-func (m *Model) SelectEditor(editor Editor) {
-	if editor != m.selectedEditor {
-		m.selectedEditor = editor
+func (m *Model) SetSelectedID(id string) {
+	if id != m.selectedID {
+		m.selectedID = id
 		m.eventBus.Notify(EditorSelectedEvent{
 			Model:  m,
-			Editor: editor,
+			Editor: m.FindEditor(id),
 		})
 	}
+}
+
+func (m *Model) SelectedEditor() Editor {
+	return m.FindEditor(m.selectedID)
 }

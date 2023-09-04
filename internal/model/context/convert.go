@@ -3,7 +3,6 @@ package context
 import (
 	"github.com/mokiat/PipniAPI/internal/storage"
 	"github.com/mokiat/gog"
-	"golang.org/x/exp/slices"
 )
 
 func (m *Model) loadFromDTO(dtoContext *storage.ContextDTO) {
@@ -14,14 +13,7 @@ func (m *Model) loadFromDTO(dtoContext *storage.ContextDTO) {
 			// TODO: more fields
 		}
 	})
-	selectedIndex := slices.IndexFunc(m.environments, func(env *Environment) bool {
-		return env.id == *dtoContext.SelectedEnvironmentID
-	})
-	if selectedIndex >= 0 {
-		m.selectedEnvironment = m.environments[0]
-	} else {
-		m.selectedEnvironment = nil
-	}
+	m.selectedID = gog.ValueOf(dtoContext.SelectedEnvironmentID, "")
 }
 
 func (m *Model) saveToDTO() *storage.ContextDTO {
@@ -32,8 +24,10 @@ func (m *Model) saveToDTO() *storage.ContextDTO {
 			Name: environment.name,
 		}
 	})
-	if m.selectedEnvironment != nil {
-		result.SelectedEnvironmentID = gog.PtrOf(m.selectedEnvironment.ID())
+	if m.selectedID != "" {
+		result.SelectedEnvironmentID = &m.selectedID
+	} else {
+		result.SelectedEnvironmentID = nil
 	}
 	return result
 }

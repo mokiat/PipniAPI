@@ -22,8 +22,8 @@ type Model struct {
 	eventBus    *mvc.EventBus
 	cfgFileName string
 
-	environments        []*Environment
-	selectedEnvironment *Environment
+	environments []*Environment
+	selectedID   string
 }
 
 func (m *Model) Environments() []*Environment {
@@ -40,15 +40,19 @@ func (m *Model) FindEnvironment(id string) *Environment {
 }
 
 func (m *Model) SelectedEnvironment() *Environment {
-	return m.selectedEnvironment
+	return m.FindEnvironment(m.selectedID)
 }
 
-func (m *Model) SelectEnvironment(environment *Environment) {
-	if environment != m.selectedEnvironment {
-		m.selectedEnvironment = environment
+func (m *Model) SelectedID() string {
+	return m.selectedID
+}
+
+func (m *Model) SetSelectedID(id string) {
+	if id != m.selectedID {
+		m.selectedID = id
 		m.eventBus.Notify(EnvironmentSelectedEvent{
 			Model:       m,
-			Environment: environment,
+			Environment: m.FindEnvironment(id),
 		})
 	}
 }
@@ -94,7 +98,7 @@ func (m *Model) Save() error {
 
 func (m *Model) Clear() {
 	m.environments = nil
-	m.selectedEnvironment = nil
+	m.selectedID = ""
 	m.eventBus.Notify(StructureChangedEvent{
 		Model: m,
 	})

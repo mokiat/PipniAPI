@@ -111,7 +111,7 @@ func (c *workspaceComponent) editorImage(editor workspace.Editor) *ui.Image {
 }
 
 func (c *workspaceComponent) selectEditor(editor workspace.Editor) {
-	c.mdlWorkspace.SelectEditor(editor)
+	c.mdlWorkspace.SetSelectedID(editor.ID())
 }
 
 func (c *workspaceComponent) closeEditor(editor workspace.Editor, force bool) {

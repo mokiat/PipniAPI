@@ -56,7 +56,7 @@ func (c *applicationComponent) OnCreate() {
 		co.OpenOverlay(c.Scope(), co.New(NotificationModal, func() {
 			co.WithData(NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),
-				Text: "The program encountered an error.\n\nSome of the state could not be restored.\n\nWill start from scratch.",
+				Text: "The program encountered an error.\n\nSome of the state could not be restored.",
 			})
 		}))
 	}
@@ -109,7 +109,8 @@ func (c *applicationComponent) Render() co.Instance {
 						VerticalAlignment: layout.VerticalAlignmentTop,
 					})
 					co.WithData(EnvironmentSelectionData{
-						ContextModel: c.mdlContext,
+						WorkspaceModel: c.mdlWorkspace,
+						ContextModel:   c.mdlContext,
 					})
 				}))
 
@@ -157,7 +158,7 @@ func (c *applicationComponent) OnEvent(event mvc.Event) {
 
 func (c *applicationComponent) openEditorForRegistryItem(itemID string) {
 	if editor := c.mdlWorkspace.FindEditor(itemID); editor != nil {
-		c.mdlWorkspace.SelectEditor(editor)
+		c.mdlWorkspace.SetSelectedID(editor.ID())
 		return
 	}
 
