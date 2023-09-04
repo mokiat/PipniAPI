@@ -1,12 +1,12 @@
 package workflow
 
 import (
-	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
+	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
-func NewEditor(eventBus *mvc.EventBus, workflow *registrymodel.Workflow) workspace.Editor {
+func NewEditor(eventBus *mvc.EventBus, workflow *registry.Workflow) workspace.Editor {
 	return &Editor{
 		eventBus: eventBus,
 		workflow: workflow,
@@ -18,7 +18,7 @@ type Editor struct {
 	workspace.NoHistoryEditor
 
 	eventBus *mvc.EventBus
-	workflow *registrymodel.Workflow
+	workflow *registry.Workflow
 }
 
 func (e *Editor) ID() string {

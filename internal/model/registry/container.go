@@ -1,4 +1,4 @@
-package registrymodel
+package registry
 
 import "golang.org/x/exp/slices"
 

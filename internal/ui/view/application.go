@@ -5,7 +5,7 @@ import (
 
 	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
-	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
+	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/gog/opt"
@@ -24,7 +24,7 @@ type applicationComponent struct {
 
 	eventBus     *mvc.EventBus
 	mdlContext   *context.Model
-	mdlRegistry  *registrymodel.Registry
+	mdlRegistry  *registry.Model
 	mdlWorkspace *workspace.Model
 }
 
@@ -41,10 +41,10 @@ func (c *applicationComponent) OnCreate() {
 		}
 	}
 
-	c.mdlRegistry = registrymodel.NewRegistry(c.eventBus, "registry.json")
+	c.mdlRegistry = registry.NewModel(c.eventBus, "registry.json")
 	if err := c.mdlRegistry.Load(); err != nil {
 		c.mdlRegistry.Clear() // start with blank
-		if !errors.Is(err, registrymodel.ErrRegistryNotFound) {
+		if !errors.Is(err, registry.ErrRegistryNotFound) {
 			loadErr = errors.Join(loadErr, err)
 		}
 	}
@@ -149,7 +149,7 @@ func (c *applicationComponent) Render() co.Instance {
 
 func (c *applicationComponent) OnEvent(event mvc.Event) {
 	switch event := event.(type) {
-	case registrymodel.RegistrySelectionChangedEvent:
+	case registry.RegistrySelectionChangedEvent:
 		c.openEditorForRegistryItem(event.SelectedID)
 	case workspace.EditorSelectedEvent:
 		c.selectResourceForEditor(event.Editor)
@@ -164,9 +164,9 @@ func (c *applicationComponent) openEditorForRegistryItem(itemID string) {
 
 	resource := c.mdlRegistry.Root().FindResource(itemID)
 	switch resource := resource.(type) {
-	case *registrymodel.Endpoint:
+	case *registry.Endpoint:
 		c.mdlWorkspace.AppendEditor(endpoint.NewEditor(c.eventBus, resource))
-	case *registrymodel.Workflow:
+	case *registry.Workflow:
 		c.mdlWorkspace.AppendEditor(workflow.NewEditor(c.eventBus, resource))
 	}
 }

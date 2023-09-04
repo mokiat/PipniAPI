@@ -1,4 +1,4 @@
-package registrymodel
+package registry
 
 import (
 	"errors"
@@ -13,8 +13,8 @@ import (
 
 var ErrRegistryNotFound = errors.New("registry file missing")
 
-func NewRegistry(eventBus *mvc.EventBus, cfgFileName string) *Registry {
-	return &Registry{
+func NewModel(eventBus *mvc.EventBus, cfgFileName string) *Model {
+	return &Model{
 		eventBus:    eventBus,
 		cfgFileName: cfgFileName,
 
@@ -26,7 +26,7 @@ func NewRegistry(eventBus *mvc.EventBus, cfgFileName string) *Registry {
 	}
 }
 
-type Registry struct {
+type Model struct {
 	eventBus    *mvc.EventBus
 	cfgFileName string
 
@@ -34,29 +34,29 @@ type Registry struct {
 	selectedID string
 }
 
-func (r *Registry) Root() Container {
-	return r.root
+func (m *Model) Root() Container {
+	return m.root
 }
 
-func (r *Registry) SelectedID() string {
-	return r.selectedID
+func (m *Model) SelectedID() string {
+	return m.selectedID
 }
 
-func (r *Registry) SetSelectedID(selectedID string) {
-	if selectedID != r.selectedID {
-		r.selectedID = selectedID
-		r.eventBus.Notify(RegistrySelectionChangedEvent{
-			Registry:   r,
+func (m *Model) SetSelectedID(selectedID string) {
+	if selectedID != m.selectedID {
+		m.selectedID = selectedID
+		m.eventBus.Notify(RegistrySelectionChangedEvent{
+			Registry:   m,
 			SelectedID: selectedID,
 		})
 	}
 }
 
-func (r *Registry) FindSelectedResource() Resource {
-	return r.root.FindResource(r.selectedID)
+func (m *Model) FindSelectedResource() Resource {
+	return m.root.FindResource(m.selectedID)
 }
 
-func (r *Registry) CanMoveUp(resource Resource) bool {
+func (m *Model) CanMoveUp(resource Resource) bool {
 	if resource == nil {
 		return false
 	}
@@ -68,18 +68,18 @@ func (r *Registry) CanMoveUp(resource Resource) bool {
 	return position > 0
 }
 
-func (r *Registry) MoveUp(resource Resource) {
+func (m *Model) MoveUp(resource Resource) {
 	if resource == nil {
 		return
 	}
 	container := resource.Container()
 	container.MoveResourceUp(resource)
-	r.eventBus.Notify(RegistryStructureChangedEvent{
-		Registry: r,
+	m.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: m,
 	})
 }
 
-func (r *Registry) CanMoveDown(resource Resource) bool {
+func (m *Model) CanMoveDown(resource Resource) bool {
 	if resource == nil {
 		return false
 	}
@@ -91,18 +91,18 @@ func (r *Registry) CanMoveDown(resource Resource) bool {
 	return position < len(container.Resources())-1
 }
 
-func (r *Registry) MoveDown(resource Resource) {
+func (m *Model) MoveDown(resource Resource) {
 	if resource == nil {
 		return
 	}
 	container := resource.Container()
 	container.MoveResourceDown(resource)
-	r.eventBus.Notify(RegistryStructureChangedEvent{
-		Registry: r,
+	m.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: m,
 	})
 }
 
-func (r *Registry) CreateResource(parent Container, name string, kind ResourceKind) {
+func (m *Model) CreateResource(parent Container, name string, kind ResourceKind) {
 	var resource Resource
 	switch kind {
 	case ResourceKindEndpoint:
@@ -125,43 +125,43 @@ func (r *Registry) CreateResource(parent Container, name string, kind ResourceKi
 	}
 	parent.AppendResource(resource)
 
-	r.eventBus.Notify(RegistryStructureChangedEvent{
-		Registry: r,
+	m.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: m,
 	})
-	r.SetSelectedID(resource.ID())
+	m.SetSelectedID(resource.ID())
 }
 
-func (r *Registry) RenameResource(resource Resource, name string) {
+func (m *Model) RenameResource(resource Resource, name string) {
 	resource.SetName(name)
-	r.eventBus.Notify(RegistryResourceNameChangedEvent{
-		Registry: r,
+	m.eventBus.Notify(RegistryResourceNameChangedEvent{
+		Registry: m,
 		Resource: resource,
 	})
 }
 
-func (r *Registry) CloneResource(resource Resource) {
+func (m *Model) CloneResource(resource Resource) {
 	parent := resource.Container()
 	newResource := resource.Clone()
 	parent.AppendResource(newResource)
-	r.eventBus.Notify(RegistryStructureChangedEvent{
-		Registry: r,
+	m.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: m,
 	})
 }
 
-func (r *Registry) DeleteResource(resource Resource) {
+func (m *Model) DeleteResource(resource Resource) {
 	parent := resource.Container()
 	parent.RemoveResource(resource)
-	r.eventBus.Notify(RegistryResourceRemovedEvent{
-		Registry: r,
+	m.eventBus.Notify(RegistryResourceRemovedEvent{
+		Registry: m,
 		Resource: resource,
 	})
-	r.eventBus.Notify(RegistryStructureChangedEvent{
-		Registry: r,
+	m.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: m,
 	})
 }
 
-func (r *Registry) Load() error {
-	file, err := os.Open(r.cfgFileName)
+func (m *Model) Load() error {
+	file, err := os.Open(m.cfgFileName)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return ErrRegistryNotFound
@@ -175,18 +175,18 @@ func (r *Registry) Load() error {
 		return fmt.Errorf("error reading file: %w", err)
 	}
 
-	r.loadFromDTO(dtoRegistry)
+	m.loadFromDTO(dtoRegistry)
 
-	r.eventBus.Notify(RegistryStructureChangedEvent{
-		Registry: r,
+	m.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: m,
 	})
 	return nil
 }
 
-func (r *Registry) Save() error {
-	dtoRegistry := r.saveToDTO()
+func (m *Model) Save() error {
+	dtoRegistry := m.saveToDTO()
 
-	file, err := os.Create(r.cfgFileName)
+	file, err := os.Create(m.cfgFileName)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
@@ -199,14 +199,14 @@ func (r *Registry) Save() error {
 	return nil
 }
 
-func (r *Registry) Clear() {
+func (m *Model) Clear() {
 	// IDEA: Consider defaulting to a working example.
-	r.root = &standardContainer{
+	m.root = &standardContainer{
 		id:   RootContainerID,
 		name: "Root",
 	}
-	r.selectedID = ""
-	r.eventBus.Notify(RegistryStructureChangedEvent{
-		Registry: r,
+	m.selectedID = ""
+	m.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: m,
 	})
 }

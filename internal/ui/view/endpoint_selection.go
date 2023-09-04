@@ -1,7 +1,7 @@
 package view
 
 import (
-	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
+	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -13,13 +13,13 @@ import (
 var EndpointSelection = mvc.EventListener(co.Define(&endpointSelectionComponent{}))
 
 type EndpointSelectionData struct {
-	RegistryModel *registrymodel.Registry
+	RegistryModel *registry.Model
 }
 
 type endpointSelectionComponent struct {
 	co.BaseComponent
 
-	mdlRegistry *registrymodel.Registry
+	mdlRegistry *registry.Model
 }
 
 func (c *endpointSelectionComponent) OnUpsert() {
@@ -60,22 +60,22 @@ func (c *endpointSelectionComponent) Render() co.Instance {
 
 func (c *endpointSelectionComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
-	case registrymodel.RegistrySelectionChangedEvent:
+	case registry.RegistrySelectionChangedEvent:
 		c.Invalidate()
-	case registrymodel.RegistryStructureChangedEvent:
+	case registry.RegistryStructureChangedEvent:
 		c.Invalidate()
 	}
 }
 
-func (c *endpointSelectionComponent) onResourceSelected(resource registrymodel.Resource) {
+func (c *endpointSelectionComponent) onResourceSelected(resource registry.Resource) {
 	c.mdlRegistry.SetSelectedID(resource.ID())
 }
 
-func (c *endpointSelectionComponent) resourceImage(resource registrymodel.Resource) *ui.Image {
+func (c *endpointSelectionComponent) resourceImage(resource registry.Resource) *ui.Image {
 	switch resource.(type) {
-	case *registrymodel.Endpoint:
+	case *registry.Endpoint:
 		return co.OpenImage(c.Scope(), "images/ping.png")
-	case *registrymodel.Workflow:
+	case *registry.Workflow:
 		return co.OpenImage(c.Scope(), "images/workflow.png")
 	default:
 		return nil

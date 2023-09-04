@@ -5,7 +5,7 @@ import (
 
 	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
-	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
+	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/lacking/ui"
@@ -92,7 +92,7 @@ func (c *workspaceComponent) OnEvent(event mvc.Event) {
 		c.Invalidate()
 	case workspace.EditorSelectedEvent:
 		c.Invalidate()
-	case registrymodel.RegistryResourceRemovedEvent:
+	case registry.RegistryResourceRemovedEvent:
 		c.closeEditorForResource(event.Resource)
 	}
 }
@@ -119,7 +119,7 @@ func (c *workspaceComponent) closeEditor(editor workspace.Editor, force bool) {
 	c.mdlWorkspace.RemoveEditor(editor)
 }
 
-func (c *workspaceComponent) closeEditorForResource(resource registrymodel.Resource) {
+func (c *workspaceComponent) closeEditorForResource(resource registry.Resource) {
 	for _, editor := range c.mdlWorkspace.Editors() {
 		if editor.ID() == resource.ID() {
 			c.closeEditor(editor, true)

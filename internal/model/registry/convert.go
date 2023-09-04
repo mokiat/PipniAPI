@@ -1,11 +1,11 @@
-package registrymodel
+package registry
 
 import (
 	"github.com/mokiat/PipniAPI/internal/storage"
 	"golang.org/x/exp/slices"
 )
 
-func (r *Registry) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
+func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 	positions := make(map[string]int)
 
 	root := &standardContainer{
@@ -39,13 +39,13 @@ func (r *Registry) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 		return positions[a.ID()] - positions[b.ID()]
 	})
 
-	r.root = root
-	r.selectedID = ""
+	m.root = root
+	m.selectedID = ""
 }
 
-func (r *Registry) saveToDTO() *storage.RegistryDTO {
+func (m *Model) saveToDTO() *storage.RegistryDTO {
 	result := &storage.RegistryDTO{}
-	for i, resource := range r.root.Resources() {
+	for i, resource := range m.root.Resources() {
 		switch resource := resource.(type) {
 		case *Endpoint:
 			result.Endpoints = append(result.Endpoints, storage.EndpointDTO{

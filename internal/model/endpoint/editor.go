@@ -3,12 +3,12 @@ package endpoint
 import (
 	"net/http"
 
-	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
+	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
-func NewEditor(eventBus *mvc.EventBus, endpoint *registrymodel.Endpoint) workspace.Editor {
+func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Editor {
 	return &Editor{
 		eventBus: eventBus,
 		endpoint: endpoint,
@@ -24,7 +24,7 @@ type Editor struct {
 	workspace.NoHistoryEditor
 
 	eventBus *mvc.EventBus
-	endpoint *registrymodel.Endpoint
+	endpoint *registry.Endpoint
 
 	method       string
 	uri          string

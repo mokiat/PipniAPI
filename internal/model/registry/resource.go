@@ -1,4 +1,4 @@
-package registrymodel
+package registry
 
 type Resource interface {
 	ID() string

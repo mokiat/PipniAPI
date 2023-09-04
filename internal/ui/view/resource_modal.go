@@ -3,7 +3,7 @@ package view
 import (
 	"strings"
 
-	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
+	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -15,22 +15,22 @@ var ResourceModal = co.Define(&resourceModalComponent{})
 
 type ResourceModalData struct {
 	Name          string
-	Kind          registrymodel.ResourceKind
+	Kind          registry.ResourceKind
 	CanChangeKind bool
 }
 
 type ResourceModalCallbackData struct {
-	OnApply func(name string, kind registrymodel.ResourceKind)
+	OnApply func(name string, kind registry.ResourceKind)
 }
 
 type resourceModalComponent struct {
 	co.BaseComponent
 
 	name          string
-	kind          registrymodel.ResourceKind
+	kind          registry.ResourceKind
 	canChangeKind bool
 
-	onApply func(name string, kind registrymodel.ResourceKind)
+	onApply func(name string, kind registry.ResourceKind)
 }
 
 func (c *resourceModalComponent) OnCreate() {
@@ -68,12 +68,12 @@ func (c *resourceModalComponent) Render() co.Instance {
 					co.WithData(std.ToolbarButtonData{
 						Icon:     co.OpenImage(c.Scope(), "images/ping.png"),
 						Text:     "Endpoint",
-						Selected: c.kind == registrymodel.ResourceKindEndpoint,
+						Selected: c.kind == registry.ResourceKindEndpoint,
 						Enabled:  opt.V(c.canChangeKind),
 					})
 					co.WithCallbackData(std.ToolbarButtonCallbackData{
 						OnClick: func() {
-							c.setKind(registrymodel.ResourceKindEndpoint)
+							c.setKind(registry.ResourceKindEndpoint)
 						},
 					})
 				}))
@@ -82,12 +82,12 @@ func (c *resourceModalComponent) Render() co.Instance {
 					co.WithData(std.ToolbarButtonData{
 						Icon:     co.OpenImage(c.Scope(), "images/workflow.png"),
 						Text:     "Workflow",
-						Selected: c.kind == registrymodel.ResourceKindWorkflow,
+						Selected: c.kind == registry.ResourceKindWorkflow,
 						Enabled:  opt.V(c.canChangeKind),
 					})
 					co.WithCallbackData(std.ToolbarButtonCallbackData{
 						OnClick: func() {
-							c.setKind(registrymodel.ResourceKindWorkflow)
+							c.setKind(registry.ResourceKindWorkflow)
 						},
 					})
 				}))
@@ -195,12 +195,12 @@ func (c *resourceModalComponent) Render() co.Instance {
 	})
 }
 
-func (c *resourceModalComponent) resourceInfo(kind registrymodel.ResourceKind) string {
+func (c *resourceModalComponent) resourceInfo(kind registry.ResourceKind) string {
 	// TODO: Manual text wrapping won't be needed here once a TextArea is used.
 	switch kind {
-	case registrymodel.ResourceKindEndpoint:
+	case registry.ResourceKindEndpoint:
 		return "An Endpoint resource represents a specific RESTful endpoint\ninvocation.\n\nEnter a name to properly reflect the endpoint's purpose."
-	case registrymodel.ResourceKindWorkflow:
+	case registry.ResourceKindWorkflow:
 		return "A Workflow can be used to orchestrate the invocation of a\nnumber of Endpoint resources by passing data between them\nand controlling the call order.\n\nEnter a name to properly reflect the workflow's purpose."
 	default:
 		return ""
@@ -212,7 +212,7 @@ func (c *resourceModalComponent) setName(name string) {
 	c.Invalidate()
 }
 
-func (c *resourceModalComponent) setKind(kind registrymodel.ResourceKind) {
+func (c *resourceModalComponent) setKind(kind registry.ResourceKind) {
 	c.kind = kind
 	c.Invalidate()
 }

@@ -3,7 +3,7 @@ package view
 import (
 	"fmt"
 
-	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
+	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
@@ -16,13 +16,13 @@ import (
 var EndpointManagement = mvc.EventListener(co.Define(&endpointManagementComponent{}))
 
 type EndpointManagementData struct {
-	RegistryModel *registrymodel.Registry
+	RegistryModel *registry.Model
 }
 
 type endpointManagementComponent struct {
 	co.BaseComponent
 
-	mdlRegistry *registrymodel.Registry
+	mdlRegistry *registry.Model
 }
 
 func (c *endpointManagementComponent) OnUpsert() {
@@ -126,9 +126,9 @@ func (c *endpointManagementComponent) Render() co.Instance {
 
 func (c *endpointManagementComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
-	case registrymodel.RegistrySelectionChangedEvent:
+	case registry.RegistrySelectionChangedEvent:
 		c.Invalidate()
-	case registrymodel.RegistryStructureChangedEvent:
+	case registry.RegistryStructureChangedEvent:
 		c.Invalidate()
 	}
 }
@@ -137,7 +137,7 @@ func (c *endpointManagementComponent) openAddResourceModal() {
 	co.OpenOverlay(c.Scope(), co.New(ResourceModal, func() {
 		co.WithData(ResourceModalData{
 			Name:          "",
-			Kind:          registrymodel.ResourceKindEndpoint,
+			Kind:          registry.ResourceKindEndpoint,
 			CanChangeKind: true,
 		})
 		co.WithCallbackData(ResourceModalCallbackData{
@@ -146,7 +146,7 @@ func (c *endpointManagementComponent) openAddResourceModal() {
 	}))
 }
 
-func (c *endpointManagementComponent) openEditResourceModal(resource registrymodel.Resource) {
+func (c *endpointManagementComponent) openEditResourceModal(resource registry.Resource) {
 	co.OpenOverlay(c.Scope(), co.New(ResourceModal, func() {
 		co.WithData(ResourceModalData{
 			Name:          resource.Name(),
@@ -154,14 +154,14 @@ func (c *endpointManagementComponent) openEditResourceModal(resource registrymod
 			CanChangeKind: false,
 		})
 		co.WithCallbackData(ResourceModalCallbackData{
-			OnApply: func(name string, _ registrymodel.ResourceKind) {
+			OnApply: func(name string, _ registry.ResourceKind) {
 				c.renameResource(resource, name)
 			},
 		})
 	}))
 }
 
-func (c *endpointManagementComponent) openDeleteResourceModal(resource registrymodel.Resource) {
+func (c *endpointManagementComponent) openDeleteResourceModal(resource registry.Resource) {
 	co.OpenOverlay(c.Scope(), co.New(ConfirmationModal, func() {
 		co.WithData(ConfirmationModalData{
 			Icon: co.OpenImage(c.Scope(), "images/warning.png"),
@@ -175,32 +175,32 @@ func (c *endpointManagementComponent) openDeleteResourceModal(resource registrym
 	}))
 }
 
-func (c *endpointManagementComponent) addResource(name string, kind registrymodel.ResourceKind) {
+func (c *endpointManagementComponent) addResource(name string, kind registry.ResourceKind) {
 	c.mdlRegistry.CreateResource(c.mdlRegistry.Root(), name, kind)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) renameResource(resource registrymodel.Resource, name string) {
+func (c *endpointManagementComponent) renameResource(resource registry.Resource, name string) {
 	c.mdlRegistry.RenameResource(resource, name)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) cloneResource(resource registrymodel.Resource) {
+func (c *endpointManagementComponent) cloneResource(resource registry.Resource) {
 	c.mdlRegistry.CloneResource(resource)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) deleteResource(resource registrymodel.Resource) {
+func (c *endpointManagementComponent) deleteResource(resource registry.Resource) {
 	c.mdlRegistry.DeleteResource(resource)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) moveResourceUp(resource registrymodel.Resource) {
+func (c *endpointManagementComponent) moveResourceUp(resource registry.Resource) {
 	c.mdlRegistry.MoveUp(resource)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) moveResourceDown(resource registrymodel.Resource) {
+func (c *endpointManagementComponent) moveResourceDown(resource registry.Resource) {
 	c.mdlRegistry.MoveDown(resource)
 	c.saveChanges()
 }

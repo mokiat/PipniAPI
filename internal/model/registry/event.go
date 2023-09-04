@@ -1,20 +1,20 @@
-package registrymodel
+package registry
 
 type RegistrySelectionChangedEvent struct {
-	Registry   *Registry
+	Registry   *Model
 	SelectedID string
 }
 
 type RegistryStructureChangedEvent struct {
-	Registry *Registry
+	Registry *Model
 }
 
 type RegistryResourceNameChangedEvent struct {
-	Registry *Registry
+	Registry *Model
 	Resource Resource
 }
 
 type RegistryResourceRemovedEvent struct {
-	Registry *Registry
+	Registry *Model
 	Resource Resource
 }
