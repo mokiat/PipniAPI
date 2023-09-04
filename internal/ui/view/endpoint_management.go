@@ -5,6 +5,7 @@ import (
 
 	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
 	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -206,6 +207,12 @@ func (c *endpointManagementComponent) moveResourceDown(resource registrymodel.Re
 
 func (c *endpointManagementComponent) saveChanges() {
 	if err := c.mdlRegistry.Save(); err != nil {
-		panic(err) // TODO: Display error message
+		log.Error("Error saving registry: %v", err)
+		co.OpenOverlay(c.Scope(), co.New(NotificationModal, func() {
+			co.WithData(NotificationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/error.png"),
+				Text: "The program encountered an error.\n\nChanges could not be saved.\n\nCheck logs for more information.",
+			})
+		}))
 	}
 }
