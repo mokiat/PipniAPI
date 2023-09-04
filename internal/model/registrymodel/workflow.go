@@ -1,5 +1,11 @@
 package registrymodel
 
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
+
 var _ Resource = (*Workflow)(nil)
 
 type Workflow struct {
@@ -26,4 +32,12 @@ func (w *Workflow) Kind() ResourceKind {
 
 func (w *Workflow) Container() Container {
 	return w.container
+}
+
+func (w *Workflow) Clone() Resource {
+	return &Workflow{
+		id:        uuid.Must(uuid.NewRandom()).String(),
+		name:      fmt.Sprintf("%s Copy", w.name),
+		container: w.container,
+	}
 }

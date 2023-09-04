@@ -1,5 +1,11 @@
 package registrymodel
 
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
+
 var _ Resource = (*Endpoint)(nil)
 
 type Endpoint struct {
@@ -26,4 +32,13 @@ func (e *Endpoint) Kind() ResourceKind {
 
 func (e *Endpoint) Container() Container {
 	return e.container
+}
+
+func (e *Endpoint) Clone() Resource {
+	return &Endpoint{
+		id:        uuid.Must(uuid.NewRandom()).String(),
+		name:      fmt.Sprintf("%s Copy", e.name),
+		container: e.container,
+		// TODO: Copy more stuff here
+	}
 }

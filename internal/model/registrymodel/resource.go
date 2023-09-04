@@ -6,6 +6,7 @@ type Resource interface {
 	SetName(name string)
 	Kind() ResourceKind
 	Container() Container
+	Clone() Resource
 }
 
 type ResourceKind string

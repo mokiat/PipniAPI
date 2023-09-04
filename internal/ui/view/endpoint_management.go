@@ -69,7 +69,9 @@ func (c *endpointManagementComponent) Render() co.Instance {
 				Enabled: opt.V(canClone),
 			})
 			co.WithCallbackData(std.ButtonCallbackData{
-				OnClick: c.cloneResource,
+				OnClick: func() {
+					c.cloneResource(resource)
+				},
 			})
 		}))
 
@@ -164,8 +166,11 @@ func (c *endpointManagementComponent) renameResource(resource registrymodel.Reso
 	}
 }
 
-func (c *endpointManagementComponent) cloneResource() {
-
+func (c *endpointManagementComponent) cloneResource(resource registrymodel.Resource) {
+	c.mdlRegistry.CloneResource(resource)
+	if err := c.mdlRegistry.Save(); err != nil {
+		panic(err) // TODO: Display error message
+	}
 }
 
 func (c *endpointManagementComponent) deleteResource() {

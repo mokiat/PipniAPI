@@ -139,6 +139,15 @@ func (r *Registry) RenameResource(resource Resource, name string) {
 	})
 }
 
+func (r *Registry) CloneResource(resource Resource) {
+	parent := resource.Container()
+	newResource := resource.Clone()
+	parent.AppendResource(newResource)
+	r.eventBus.Notify(RegistryStructureChangedEvent{
+		Registry: r,
+	})
+}
+
 func (r *Registry) Load() error {
 	file, err := os.Open(r.cfgFileName)
 	if err != nil {
