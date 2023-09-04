@@ -3,6 +3,8 @@ package registrymodel
 type Resource interface {
 	ID() string
 	Name() string
+	SetName(name string)
+	Kind() ResourceKind
 	Container() Container
 }
 

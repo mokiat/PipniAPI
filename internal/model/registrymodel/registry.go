@@ -131,6 +131,14 @@ func (r *Registry) CreateResource(parent Container, name string, kind ResourceKi
 	r.SetSelectedID(resource.ID())
 }
 
+func (r *Registry) RenameResource(resource Resource, name string) {
+	resource.SetName(name)
+	r.eventBus.Notify(RegistryResourceNameChangedEvent{
+		Registry: r,
+		Resource: resource,
+	})
+}
+
 func (r *Registry) Load() error {
 	file, err := os.Open(r.cfgFileName)
 	if err != nil {

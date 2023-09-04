@@ -141,7 +141,27 @@ func (c *endpointManagementComponent) addResource(name string, kind registrymode
 }
 
 func (c *endpointManagementComponent) editResource() {
+	resource := c.mdlRegistry.FindSelectedResource()
 
+	co.OpenOverlay(c.Scope(), co.New(ResourceModal, func() {
+		co.WithData(ResourceModalData{
+			Name:          resource.Name(),
+			Kind:          resource.Kind(),
+			CanChangeKind: false,
+		})
+		co.WithCallbackData(ResourceModalCallbackData{
+			OnApply: func(name string, _ registrymodel.ResourceKind) {
+				c.renameResource(resource, name)
+			},
+		})
+	}))
+}
+
+func (c *endpointManagementComponent) renameResource(resource registrymodel.Resource, name string) {
+	c.mdlRegistry.RenameResource(resource, name)
+	if err := c.mdlRegistry.Save(); err != nil {
+		panic(err) // TODO: Display error message
+	}
 }
 
 func (c *endpointManagementComponent) cloneResource() {

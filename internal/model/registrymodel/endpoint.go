@@ -20,6 +20,10 @@ func (e *Endpoint) SetName(name string) {
 	e.name = name
 }
 
+func (e *Endpoint) Kind() ResourceKind {
+	return ResourceKindEndpoint
+}
+
 func (e *Endpoint) Container() Container {
 	return e.container
 }

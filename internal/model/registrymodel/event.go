@@ -8,3 +8,8 @@ type RegistrySelectionChangedEvent struct {
 type RegistryStructureChangedEvent struct {
 	Registry *Registry
 }
+
+type RegistryResourceNameChangedEvent struct {
+	Registry *Registry
+	Resource Resource
+}
