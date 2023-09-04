@@ -5,7 +5,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func fromDTO(dtoRegistry *storage.RegistryDTO) Container {
+func (r *Registry) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 	positions := make(map[string]int)
 
 	root := &standardContainer{
@@ -39,12 +39,13 @@ func fromDTO(dtoRegistry *storage.RegistryDTO) Container {
 		return positions[a.ID()] - positions[b.ID()]
 	})
 
-	return root
+	r.root = root
+	r.selectedID = ""
 }
 
-func toDTO(root Container) *storage.RegistryDTO {
+func (r *Registry) saveToDTO() *storage.RegistryDTO {
 	result := &storage.RegistryDTO{}
-	for i, resource := range root.Resources() {
+	for i, resource := range r.root.Resources() {
 		switch resource := resource.(type) {
 		case *Endpoint:
 			result.Endpoints = append(result.Endpoints, storage.EndpointDTO{

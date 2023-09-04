@@ -3,8 +3,11 @@ package view
 import (
 	"fmt"
 
+	"github.com/mokiat/PipniAPI/internal/model/context"
+	"github.com/mokiat/PipniAPI/internal/model/endpoint"
 	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
-	"github.com/mokiat/PipniAPI/internal/ui/model"
+	"github.com/mokiat/PipniAPI/internal/model/workflow"
+	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -15,13 +18,13 @@ import (
 var Workspace = mvc.EventListener(co.Define(&workspaceComponent{}))
 
 type WorkspaceData struct {
-	WorkspaceModel *model.Workspace
+	WorkspaceModel *workspace.Model
 }
 
 type workspaceComponent struct {
 	co.BaseComponent
 
-	mdlWorkspace *model.Workspace
+	mdlWorkspace *workspace.Model
 }
 
 func (c *workspaceComponent) OnUpsert() {
@@ -30,6 +33,8 @@ func (c *workspaceComponent) OnUpsert() {
 }
 
 func (c *workspaceComponent) Render() co.Instance {
+	selectedEditor := c.mdlWorkspace.SelectedEditor()
+
 	return co.New(std.Container, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ContainerData{
@@ -41,14 +46,12 @@ func (c *workspaceComponent) Render() co.Instance {
 				VerticalAlignment: layout.VerticalAlignmentTop,
 			})
 
-			for _, editor := range c.mdlWorkspace.Editors() {
-				editor := editor
-
+			c.mdlWorkspace.EachEditor(func(editor workspace.Editor) {
 				co.WithChild(editor.ID(), co.New(std.TabbarTab, func() {
 					co.WithData(std.TabbarTabData{
 						Icon:     c.editorImage(editor),
-						Text:     editor.Title(),
-						Selected: c.mdlWorkspace.ActiveEditor() == editor,
+						Text:     editor.Name(),
+						Selected: c.mdlWorkspace.SelectedEditor() == editor,
 					})
 					co.WithCallbackData(std.TabbarTabCallbackData{
 						OnClick: func() {
@@ -59,12 +62,12 @@ func (c *workspaceComponent) Render() co.Instance {
 						},
 					})
 				}))
-			}
+			})
 		}))
 
-		if activeEditor := c.mdlWorkspace.ActiveEditor(); activeEditor != nil {
+		if selectedEditor != nil {
 			// TODO: Dynamic type based on workspace model editor selection
-			co.WithChild(fmt.Sprintf("tabbar-editor-%s", activeEditor.ID()), co.New(EndpointEditor, func() {
+			co.WithChild(fmt.Sprintf("tabbar-editor-%s", selectedEditor.ID()), co.New(EndpointEditor, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentCenter,
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
@@ -83,37 +86,37 @@ func (c *workspaceComponent) Render() co.Instance {
 
 func (c *workspaceComponent) OnEvent(event mvc.Event) {
 	switch event := event.(type) {
-	case model.EditorSelectedEvent:
+	case workspace.EditorAddedEvent:
 		c.Invalidate()
-	case model.EditorAddedEvent:
+	case workspace.EditorRemovedEvent:
 		c.Invalidate()
-	case model.EditorRemovedEvent:
+	case workspace.EditorSelectedEvent:
 		c.Invalidate()
 	case registrymodel.RegistryResourceRemovedEvent:
 		c.closeEditorForResource(event.Resource)
 	}
 }
 
-func (c *workspaceComponent) editorImage(editor model.Editor) *ui.Image {
+func (c *workspaceComponent) editorImage(editor workspace.Editor) *ui.Image {
 	switch editor.(type) {
-	case *model.EndpointEditor:
+	case *endpoint.Editor:
 		return co.OpenImage(c.Scope(), "images/ping.png")
-	case *model.WorkflowEditor:
+	case *workflow.Editor:
 		return co.OpenImage(c.Scope(), "images/workflow.png")
-	case *model.ContextEditor:
+	case *context.Editor:
 		return co.OpenImage(c.Scope(), "images/settings.png")
 	default:
 		return nil
 	}
 }
 
-func (c *workspaceComponent) selectEditor(editor model.Editor) {
-	c.mdlWorkspace.SetActiveEditor(editor)
+func (c *workspaceComponent) selectEditor(editor workspace.Editor) {
+	c.mdlWorkspace.SelectEditor(editor)
 }
 
-func (c *workspaceComponent) closeEditor(editor model.Editor, force bool) {
+func (c *workspaceComponent) closeEditor(editor workspace.Editor, force bool) {
 	// TODO: Check if dirty and open a confirmation dialog if dirty.
-	c.mdlWorkspace.CloseEditor(editor)
+	c.mdlWorkspace.RemoveEditor(editor)
 }
 
 func (c *workspaceComponent) closeEditorForResource(resource registrymodel.Resource) {

@@ -2,11 +2,14 @@ package view
 
 import (
 	"errors"
-	"fmt"
 
+	"github.com/mokiat/PipniAPI/internal/model/context"
+	"github.com/mokiat/PipniAPI/internal/model/endpoint"
 	"github.com/mokiat/PipniAPI/internal/model/registrymodel"
-	"github.com/mokiat/PipniAPI/internal/ui/model"
+	"github.com/mokiat/PipniAPI/internal/model/workflow"
+	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -20,28 +23,43 @@ type applicationComponent struct {
 	co.BaseComponent
 
 	eventBus     *mvc.EventBus
-	mdlContext   *model.Context
+	mdlContext   *context.Model
 	mdlRegistry  *registrymodel.Registry
-	mdlWorkspace *model.Workspace
+	mdlWorkspace *workspace.Model
 }
 
 func (c *applicationComponent) OnCreate() {
+	var loadErr error
+
 	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
 
-	c.mdlContext = model.NewContext(c.eventBus, "context.json")
+	c.mdlContext = context.NewModel(c.eventBus, "context.json")
 	if err := c.mdlContext.Load(); err != nil {
-		panic(fmt.Errorf("error loading registry: %w", err)) // TODO: Show error dialog and continue with blank state.
+		c.mdlContext.Clear() // start with blank
+		if !errors.Is(err, context.ErrContextNotFound) {
+			loadErr = errors.Join(loadErr, err)
+		}
 	}
 
 	c.mdlRegistry = registrymodel.NewRegistry(c.eventBus, "registry.json")
 	if err := c.mdlRegistry.Load(); err != nil {
 		c.mdlRegistry.Clear() // start with blank
 		if !errors.Is(err, registrymodel.ErrRegistryNotFound) {
-			panic("TODO: Show error message dialog")
+			loadErr = errors.Join(loadErr, err)
 		}
 	}
 
-	c.mdlWorkspace = model.NewWorkspace(c.eventBus)
+	c.mdlWorkspace = workspace.NewModel(c.eventBus)
+
+	if loadErr != nil {
+		log.Error("Error loading models: %v", loadErr)
+		co.OpenOverlay(c.Scope(), co.New(NotificationModal, func() {
+			co.WithData(NotificationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/error.png"),
+				Text: "The program encountered an error.\n\nSome of the state could not be restored.\n\nWill start from scratch.",
+			})
+		}))
+	}
 }
 
 func (c *applicationComponent) Render() co.Instance {
@@ -132,28 +150,27 @@ func (c *applicationComponent) OnEvent(event mvc.Event) {
 	switch event := event.(type) {
 	case registrymodel.RegistrySelectionChangedEvent:
 		c.openEditorForRegistryItem(event.SelectedID)
-	case model.EditorSelectedEvent:
+	case workspace.EditorSelectedEvent:
 		c.selectResourceForEditor(event.Editor)
-	case model.ContextEditorOpenEvent:
-		c.openContextEditor()
 	}
 }
 
 func (c *applicationComponent) openEditorForRegistryItem(itemID string) {
+	if editor := c.mdlWorkspace.FindEditor(itemID); editor != nil {
+		c.mdlWorkspace.SelectEditor(editor)
+		return
+	}
+
 	resource := c.mdlRegistry.Root().FindResource(itemID)
 	switch resource := resource.(type) {
 	case *registrymodel.Endpoint:
-		c.mdlWorkspace.OpenEditor(model.NewEndpointEditor(c.eventBus, resource))
+		c.mdlWorkspace.AppendEditor(endpoint.NewEditor(c.eventBus, resource))
 	case *registrymodel.Workflow:
-		c.mdlWorkspace.OpenEditor(model.NewWorkflowEditor(c.eventBus, resource))
+		c.mdlWorkspace.AppendEditor(workflow.NewEditor(c.eventBus, resource))
 	}
 }
 
-func (c *applicationComponent) openContextEditor() {
-	c.mdlWorkspace.OpenEditor(model.NewContextEditor(c.eventBus, c.mdlContext))
-}
-
-func (c *applicationComponent) selectResourceForEditor(editor model.Editor) {
+func (c *applicationComponent) selectResourceForEditor(editor workspace.Editor) {
 	if editor != nil {
 		c.mdlRegistry.SetSelectedID(editor.ID())
 	} else {

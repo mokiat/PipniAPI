@@ -3,7 +3,7 @@ package view
 import (
 	"net/http"
 
-	"github.com/mokiat/PipniAPI/internal/ui/model"
+	"github.com/mokiat/PipniAPI/internal/model/endpoint"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -14,7 +14,7 @@ import (
 var EndpointEditor = co.Define(&endpointEditorComponent{})
 
 type EndpointEditorData struct {
-	EndpointModel *model.EndpointEditor
+	EndpointModel *endpoint.Editor
 }
 
 type endpointEditorComponent struct {

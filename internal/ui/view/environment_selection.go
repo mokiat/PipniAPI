@@ -1,7 +1,8 @@
 package view
 
 import (
-	"github.com/mokiat/PipniAPI/internal/ui/model"
+	"github.com/mokiat/PipniAPI/internal/model/context"
+	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -13,31 +14,37 @@ import (
 var EnvironmentSelection = mvc.EventListener(co.Define(&environmentSelectionComponent{}))
 
 type EnvironmentSelectionData struct {
-	ContextModel *model.Context
+	WorkspaceModel *workspace.Model
+	ContextModel   *context.Model
 }
 
 type environmentSelectionComponent struct {
 	co.BaseComponent
 
-	eventBus   *mvc.EventBus
-	mdlContext *model.Context
+	eventBus     *mvc.EventBus
+	mdlWorkspace *workspace.Model
+	mdlContext   *context.Model
 }
 
 func (c *environmentSelectionComponent) OnUpsert() {
 	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
 
 	data := co.GetData[EnvironmentSelectionData](c.Properties())
+	c.mdlWorkspace = data.WorkspaceModel
 	c.mdlContext = data.ContextModel
 }
 
 func (c *environmentSelectionComponent) Render() co.Instance {
-	dropdownItems := gog.Map(c.mdlContext.Environments(), func(env *model.Environment) std.DropdownItem {
+	dropdownItems := gog.Map(c.mdlContext.Environments(), func(env *context.Environment) std.DropdownItem {
 		return std.DropdownItem{
 			Key:   env.ID(),
 			Label: env.Name(),
 		}
 	})
-	selectedItem := c.mdlContext.SelectedID()
+	var selectedKey string
+	if selectedEnv := c.mdlContext.SelectedEnvironment(); selectedEnv != nil {
+		selectedKey = selectedEnv.ID()
+	}
 
 	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
@@ -56,7 +63,7 @@ func (c *environmentSelectionComponent) Render() co.Instance {
 			})
 			co.WithData(std.DropdownData{
 				Items:       dropdownItems,
-				SelectedKey: selectedItem,
+				SelectedKey: selectedKey,
 			})
 			co.WithCallbackData(std.DropdownCallbackData{
 				OnItemSelected: c.onDropdownItemSelected,
@@ -80,17 +87,20 @@ func (c *environmentSelectionComponent) Render() co.Instance {
 
 func (c *environmentSelectionComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
-	case model.ContextSelectionChangedEvent:
+	case context.EnvironmentSelectedEvent:
 		c.Invalidate()
 	}
 }
 
 func (c *environmentSelectionComponent) onDropdownItemSelected(key any) {
-	c.mdlContext.SetSelectedID(key.(string))
+	environment := c.mdlContext.FindEnvironment(key.(string))
+	c.mdlContext.SelectEnvironment(environment)
 }
 
 func (c *environmentSelectionComponent) onSettingsClicked() {
-	c.eventBus.Notify(model.ContextEditorOpenEvent{
-		Context: c.mdlContext,
-	})
+	if editor := c.mdlWorkspace.FindEditor(context.ContextEditorID); editor != nil {
+		c.mdlWorkspace.SelectEditor(editor)
+	} else {
+		c.mdlWorkspace.AppendEditor(context.NewEditor(c.eventBus, c.mdlContext))
+	}
 }

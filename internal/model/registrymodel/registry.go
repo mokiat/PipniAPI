@@ -175,8 +175,8 @@ func (r *Registry) Load() error {
 		return fmt.Errorf("error reading file: %w", err)
 	}
 
-	r.root = fromDTO(dtoRegistry)
-	r.selectedID = ""
+	r.loadFromDTO(dtoRegistry)
+
 	r.eventBus.Notify(RegistryStructureChangedEvent{
 		Registry: r,
 	})
@@ -184,7 +184,7 @@ func (r *Registry) Load() error {
 }
 
 func (r *Registry) Save() error {
-	dtoRegistry := toDTO(r.root)
+	dtoRegistry := r.saveToDTO()
 
 	file, err := os.Create(r.cfgFileName)
 	if err != nil {
