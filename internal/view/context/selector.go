@@ -1,4 +1,4 @@
-package view
+package context
 
 import (
 	"github.com/mokiat/PipniAPI/internal/model/context"
@@ -13,14 +13,14 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var EnvironmentSelection = mvc.EventListener(co.Define(&environmentSelectionComponent{}))
+var Selector = mvc.EventListener(co.Define(&selectorComponent{}))
 
-type EnvironmentSelectionData struct {
+type SelectorData struct {
 	WorkspaceModel *workspace.Model
 	ContextModel   *context.Model
 }
 
-type environmentSelectionComponent struct {
+type selectorComponent struct {
 	co.BaseComponent
 
 	eventBus     *mvc.EventBus
@@ -28,15 +28,15 @@ type environmentSelectionComponent struct {
 	mdlContext   *context.Model
 }
 
-func (c *environmentSelectionComponent) OnUpsert() {
+func (c *selectorComponent) OnUpsert() {
 	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
 
-	data := co.GetData[EnvironmentSelectionData](c.Properties())
+	data := co.GetData[SelectorData](c.Properties())
 	c.mdlWorkspace = data.WorkspaceModel
 	c.mdlContext = data.ContextModel
 }
 
-func (c *environmentSelectionComponent) Render() co.Instance {
+func (c *selectorComponent) Render() co.Instance {
 	dropdownItems := gog.Map(c.mdlContext.Environments(), func(env *context.Environment) std.DropdownItem {
 		return std.DropdownItem{
 			Key:   env.ID(),
@@ -87,19 +87,19 @@ func (c *environmentSelectionComponent) Render() co.Instance {
 	})
 }
 
-func (c *environmentSelectionComponent) OnEvent(event mvc.Event) {
+func (c *selectorComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
 	case context.EnvironmentSelectedEvent:
 		c.Invalidate()
 	}
 }
 
-func (c *environmentSelectionComponent) onDropdownItemSelected(key any) {
+func (c *selectorComponent) onDropdownItemSelected(key any) {
 	c.mdlContext.SetSelectedID(key.(string))
 	c.saveChanges()
 }
 
-func (c *environmentSelectionComponent) onSettingsClicked() {
+func (c *selectorComponent) onSettingsClicked() {
 	if editor := c.mdlWorkspace.FindEditor(context.EditorID); editor != nil {
 		c.mdlWorkspace.SetSelectedID(editor.ID())
 	} else {
@@ -107,7 +107,7 @@ func (c *environmentSelectionComponent) onSettingsClicked() {
 	}
 }
 
-func (c *environmentSelectionComponent) saveChanges() {
+func (c *selectorComponent) saveChanges() {
 	if err := c.mdlContext.Save(); err != nil {
 		log.Error("Error saving context: %v", err)
 		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {

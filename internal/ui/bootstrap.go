@@ -19,28 +19,8 @@ var Bootstrap = co.Define(&bootstrapComponent{})
 
 type bootstrapComponent struct {
 	co.BaseComponent
-
-	// appModel      *model.Application
-	// settingsModel *model.Settings
-	// loadingModel  *model.Loading
-	// playModel     *model.Play
-}
-
-func (c *bootstrapComponent) OnCreate() {
-	// eventBus := co.TypedValue[*mvc.EventBus](c.Scope())
-	// c.appModel = model.NewApplication(eventBus)
-	// c.settingsModel = model.NewSettings(eventBus)
-	// c.loadingModel = model.NewLoading()
-	// c.playModel = model.NewPlay()
 }
 
 func (c *bootstrapComponent) Render() co.Instance {
-	return co.New(view.Application, func() {
-		// co.WithData(view.ApplicationData{
-		// 	// AppModel:      c.appModel,
-		// 	// SettingsModel: c.settingsModel,
-		// 	// LoadingModel:  c.loadingModel,
-		// 	// PlayModel:     c.playModel,
-		// })
-	})
+	return co.New(view.Application, nil)
 }

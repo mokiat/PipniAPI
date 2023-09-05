@@ -8,6 +8,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	contextview "github.com/mokiat/PipniAPI/internal/view/context"
 	registryview "github.com/mokiat/PipniAPI/internal/view/registry"
 	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog/opt"
@@ -106,11 +107,11 @@ func (c *applicationComponent) Render() co.Instance {
 					}),
 				})
 
-				co.WithChild("environment-selection", co.New(EnvironmentSelection, func() {
+				co.WithChild("environment-selection", co.New(contextview.Selector, func() {
 					co.WithLayoutData(layout.Data{
 						VerticalAlignment: layout.VerticalAlignmentTop,
 					})
-					co.WithData(EnvironmentSelectionData{
+					co.WithData(contextview.SelectorData{
 						WorkspaceModel: c.mdlWorkspace,
 						ContextModel:   c.mdlContext,
 					})
