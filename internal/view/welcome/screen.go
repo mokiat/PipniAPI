@@ -1,4 +1,4 @@
-package view
+package welcome
 
 import (
 	"github.com/mokiat/gog/opt"
@@ -26,13 +26,13 @@ Here is how to get started:
 5. Continue from there
 `
 
-var WelcomeScreen = co.Define(&welcomeEditorComponent{})
+var Screen = co.Define(&screenComponent{})
 
-type welcomeEditorComponent struct {
+type screenComponent struct {
 	co.BaseComponent
 }
 
-func (c *welcomeEditorComponent) Render() co.Instance {
+func (c *screenComponent) Render() co.Instance {
 	return co.New(std.Container, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ContainerData{

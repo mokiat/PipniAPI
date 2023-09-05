@@ -3,6 +3,7 @@ package view
 import (
 	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
@@ -109,8 +110,8 @@ func (c *environmentSelectionComponent) onSettingsClicked() {
 func (c *environmentSelectionComponent) saveChanges() {
 	if err := c.mdlContext.Save(); err != nil {
 		log.Error("Error saving context: %v", err)
-		co.OpenOverlay(c.Scope(), co.New(NotificationModal, func() {
-			co.WithData(NotificationModalData{
+		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),
 				Text: "The program encountered an error.\n\nChanges could not be saved.\n\nCheck logs for more information.",
 			})

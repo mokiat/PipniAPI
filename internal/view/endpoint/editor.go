@@ -1,4 +1,4 @@
-package view
+package endpoint
 
 import (
 	"net/http"
@@ -11,17 +11,17 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var EndpointEditor = co.Define(&endpointEditorComponent{})
+var Editor = co.Define(&editorComponent{})
 
-type EndpointEditorData struct {
-	EndpointModel *endpoint.Editor
+type EditorData struct {
+	EditorModel *endpoint.Editor
 }
 
-type endpointEditorComponent struct {
+type editorComponent struct {
 	co.BaseComponent
 }
 
-func (c *endpointEditorComponent) Render() co.Instance {
+func (c *editorComponent) Render() co.Instance {
 	return co.New(std.Container, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ContainerData{

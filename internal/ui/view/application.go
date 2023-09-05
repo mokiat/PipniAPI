@@ -8,6 +8,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
@@ -53,8 +54,8 @@ func (c *applicationComponent) OnCreate() {
 
 	if loadErr != nil {
 		log.Error("Error loading models: %v", loadErr)
-		co.OpenOverlay(c.Scope(), co.New(NotificationModal, func() {
-			co.WithData(NotificationModalData{
+		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),
 				Text: "The program encountered an error.\n\nSome of the state could not be restored.",
 			})
@@ -141,6 +142,7 @@ func (c *applicationComponent) Render() co.Instance {
 				})
 				co.WithData(WorkspaceData{
 					WorkspaceModel: c.mdlWorkspace,
+					ContextModel:   c.mdlContext,
 				})
 			}))
 		}))

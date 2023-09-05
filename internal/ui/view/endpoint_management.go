@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
+	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
@@ -162,12 +163,12 @@ func (c *endpointManagementComponent) openEditResourceModal(resource registry.Re
 }
 
 func (c *endpointManagementComponent) openDeleteResourceModal(resource registry.Resource) {
-	co.OpenOverlay(c.Scope(), co.New(ConfirmationModal, func() {
-		co.WithData(ConfirmationModalData{
+	co.OpenOverlay(c.Scope(), co.New(widget.ConfirmationModal, func() {
+		co.WithData(widget.ConfirmationModalData{
 			Icon: co.OpenImage(c.Scope(), "images/warning.png"),
 			Text: fmt.Sprintf("Are you sure you want to delete the following resource:\n\n\n%q\n\n\nThis cannot be undone!", resource.Name()),
 		})
-		co.WithCallbackData(ConfirmationModalCallbackData{
+		co.WithCallbackData(widget.ConfirmationModalCallbackData{
 			OnApply: func() {
 				c.deleteResource(resource)
 			},
@@ -208,8 +209,8 @@ func (c *endpointManagementComponent) moveResourceDown(resource registry.Resourc
 func (c *endpointManagementComponent) saveChanges() {
 	if err := c.mdlRegistry.Save(); err != nil {
 		log.Error("Error saving registry: %v", err)
-		co.OpenOverlay(c.Scope(), co.New(NotificationModal, func() {
-			co.WithData(NotificationModalData{
+		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),
 				Text: "The program encountered an error.\n\nChanges could not be saved.\n\nCheck logs for more information.",
 			})

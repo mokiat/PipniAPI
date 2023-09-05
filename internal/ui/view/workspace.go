@@ -8,6 +8,9 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	contextview "github.com/mokiat/PipniAPI/internal/view/context"
+	endpointview "github.com/mokiat/PipniAPI/internal/view/endpoint"
+	"github.com/mokiat/PipniAPI/internal/view/welcome"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -19,17 +22,20 @@ var Workspace = mvc.EventListener(co.Define(&workspaceComponent{}))
 
 type WorkspaceData struct {
 	WorkspaceModel *workspace.Model
+	ContextModel   *context.Model
 }
 
 type workspaceComponent struct {
 	co.BaseComponent
 
 	mdlWorkspace *workspace.Model
+	mdlContext   *context.Model
 }
 
 func (c *workspaceComponent) OnUpsert() {
 	data := co.GetData[WorkspaceData](c.Properties())
 	c.mdlWorkspace = data.WorkspaceModel
+	c.mdlContext = data.ContextModel
 }
 
 func (c *workspaceComponent) Render() co.Instance {
@@ -65,21 +71,38 @@ func (c *workspaceComponent) Render() co.Instance {
 			})
 		}))
 
-		if selectedEditor != nil {
-			// TODO: Dynamic type based on workspace model editor selection
-			co.WithChild(fmt.Sprintf("tabbar-editor-%s", selectedEditor.ID()), co.New(EndpointEditor, func() {
+		switch editor := selectedEditor.(type) {
+		case *context.Editor:
+			co.WithChild(fmt.Sprintf("editor-%s", editor.ID()), co.New(contextview.Editor, func() {
+				co.WithLayoutData(layout.Data{
+					HorizontalAlignment: layout.HorizontalAlignmentCenter,
+					VerticalAlignment:   layout.VerticalAlignmentCenter,
+				})
+				co.WithData(contextview.EditorData{
+					ContextModel: c.mdlContext,
+					EditorModel:  editor,
+				})
+			}))
+
+		case *endpoint.Editor:
+			co.WithChild(fmt.Sprintf("editor-%s", editor.ID()), co.New(endpointview.Editor, func() {
+				co.WithLayoutData(layout.Data{
+					HorizontalAlignment: layout.HorizontalAlignmentCenter,
+					VerticalAlignment:   layout.VerticalAlignmentCenter,
+				})
+				co.WithData(endpointview.EditorData{
+					EditorModel: editor,
+				})
+			}))
+
+		case nil:
+			co.WithChild("welcome-screen", co.New(welcome.Screen, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentCenter,
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
 			}))
-		} else {
-			co.WithChild("welcome-screen", co.New(WelcomeScreen, func() {
-				co.WithLayoutData(layout.Data{
-					HorizontalAlignment: layout.HorizontalAlignmentCenter,
-					VerticalAlignment:   layout.VerticalAlignmentCenter,
-				})
-			}))
+
 		}
 	})
 }
