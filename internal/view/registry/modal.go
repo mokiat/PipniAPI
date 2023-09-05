@@ -1,4 +1,4 @@
-package view
+package registry
 
 import (
 	"strings"
@@ -11,19 +11,19 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var ResourceModal = co.Define(&resourceModalComponent{})
+var Modal = co.Define(&modalComponent{})
 
-type ResourceModalData struct {
+type ModalData struct {
 	Name          string
 	Kind          registry.ResourceKind
 	CanChangeKind bool
 }
 
-type ResourceModalCallbackData struct {
+type ModalCallbackData struct {
 	OnApply func(name string, kind registry.ResourceKind)
 }
 
-type resourceModalComponent struct {
+type modalComponent struct {
 	co.BaseComponent
 
 	name          string
@@ -33,17 +33,17 @@ type resourceModalComponent struct {
 	onApply func(name string, kind registry.ResourceKind)
 }
 
-func (c *resourceModalComponent) OnCreate() {
-	data := co.GetData[ResourceModalData](c.Properties())
+func (c *modalComponent) OnCreate() {
+	data := co.GetData[ModalData](c.Properties())
 	c.name = data.Name
 	c.kind = data.Kind
 	c.canChangeKind = data.CanChangeKind
 
-	callbackData := co.GetCallbackData[ResourceModalCallbackData](c.Properties())
+	callbackData := co.GetCallbackData[ModalCallbackData](c.Properties())
 	c.onApply = callbackData.OnApply
 }
 
-func (c *resourceModalComponent) Render() co.Instance {
+func (c *modalComponent) Render() co.Instance {
 	return co.New(std.Modal, func() {
 		co.WithLayoutData(layout.Data{
 			Width:            opt.V(500),
@@ -195,7 +195,7 @@ func (c *resourceModalComponent) Render() co.Instance {
 	})
 }
 
-func (c *resourceModalComponent) resourceInfo(kind registry.ResourceKind) string {
+func (c *modalComponent) resourceInfo(kind registry.ResourceKind) string {
 	// TODO: Manual text wrapping won't be needed here once a TextArea is used.
 	switch kind {
 	case registry.ResourceKindEndpoint:
@@ -207,21 +207,21 @@ func (c *resourceModalComponent) resourceInfo(kind registry.ResourceKind) string
 	}
 }
 
-func (c *resourceModalComponent) setName(name string) {
+func (c *modalComponent) setName(name string) {
 	c.name = name
 	c.Invalidate()
 }
 
-func (c *resourceModalComponent) setKind(kind registry.ResourceKind) {
+func (c *modalComponent) setKind(kind registry.ResourceKind) {
 	c.kind = kind
 	c.Invalidate()
 }
 
-func (c *resourceModalComponent) onGo() {
+func (c *modalComponent) onGo() {
 	c.onApply(c.name, c.kind)
 	co.CloseOverlay(c.Scope())
 }
 
-func (c *resourceModalComponent) onCancel() {
+func (c *modalComponent) onCancel() {
 	co.CloseOverlay(c.Scope())
 }

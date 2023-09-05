@@ -1,4 +1,4 @@
-package view
+package registry
 
 import (
 	"fmt"
@@ -14,24 +14,24 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var EndpointManagement = mvc.EventListener(co.Define(&endpointManagementComponent{}))
+var Toolbar = mvc.EventListener(co.Define(&toolbarComponent{}))
 
-type EndpointManagementData struct {
+type ToolbarData struct {
 	RegistryModel *registry.Model
 }
 
-type endpointManagementComponent struct {
+type toolbarComponent struct {
 	co.BaseComponent
 
 	mdlRegistry *registry.Model
 }
 
-func (c *endpointManagementComponent) OnUpsert() {
-	data := co.GetData[EndpointManagementData](c.Properties())
+func (c *toolbarComponent) OnUpsert() {
+	data := co.GetData[ToolbarData](c.Properties())
 	c.mdlRegistry = data.RegistryModel
 }
 
-func (c *endpointManagementComponent) Render() co.Instance {
+func (c *toolbarComponent) Render() co.Instance {
 	resource := c.mdlRegistry.FindSelectedResource()
 	canEdit := resource != nil
 	canClone := resource != nil
@@ -125,7 +125,7 @@ func (c *endpointManagementComponent) Render() co.Instance {
 	})
 }
 
-func (c *endpointManagementComponent) OnEvent(event mvc.Event) {
+func (c *toolbarComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
 	case registry.RegistrySelectionChangedEvent:
 		c.Invalidate()
@@ -134,27 +134,27 @@ func (c *endpointManagementComponent) OnEvent(event mvc.Event) {
 	}
 }
 
-func (c *endpointManagementComponent) openAddResourceModal() {
-	co.OpenOverlay(c.Scope(), co.New(ResourceModal, func() {
-		co.WithData(ResourceModalData{
+func (c *toolbarComponent) openAddResourceModal() {
+	co.OpenOverlay(c.Scope(), co.New(Modal, func() {
+		co.WithData(ModalData{
 			Name:          "",
 			Kind:          registry.ResourceKindEndpoint,
 			CanChangeKind: true,
 		})
-		co.WithCallbackData(ResourceModalCallbackData{
+		co.WithCallbackData(ModalCallbackData{
 			OnApply: c.addResource,
 		})
 	}))
 }
 
-func (c *endpointManagementComponent) openEditResourceModal(resource registry.Resource) {
-	co.OpenOverlay(c.Scope(), co.New(ResourceModal, func() {
-		co.WithData(ResourceModalData{
+func (c *toolbarComponent) openEditResourceModal(resource registry.Resource) {
+	co.OpenOverlay(c.Scope(), co.New(Modal, func() {
+		co.WithData(ModalData{
 			Name:          resource.Name(),
 			Kind:          resource.Kind(),
 			CanChangeKind: false,
 		})
-		co.WithCallbackData(ResourceModalCallbackData{
+		co.WithCallbackData(ModalCallbackData{
 			OnApply: func(name string, _ registry.ResourceKind) {
 				c.renameResource(resource, name)
 			},
@@ -162,7 +162,7 @@ func (c *endpointManagementComponent) openEditResourceModal(resource registry.Re
 	}))
 }
 
-func (c *endpointManagementComponent) openDeleteResourceModal(resource registry.Resource) {
+func (c *toolbarComponent) openDeleteResourceModal(resource registry.Resource) {
 	co.OpenOverlay(c.Scope(), co.New(widget.ConfirmationModal, func() {
 		co.WithData(widget.ConfirmationModalData{
 			Icon: co.OpenImage(c.Scope(), "images/warning.png"),
@@ -176,37 +176,37 @@ func (c *endpointManagementComponent) openDeleteResourceModal(resource registry.
 	}))
 }
 
-func (c *endpointManagementComponent) addResource(name string, kind registry.ResourceKind) {
+func (c *toolbarComponent) addResource(name string, kind registry.ResourceKind) {
 	c.mdlRegistry.CreateResource(c.mdlRegistry.Root(), name, kind)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) renameResource(resource registry.Resource, name string) {
+func (c *toolbarComponent) renameResource(resource registry.Resource, name string) {
 	c.mdlRegistry.RenameResource(resource, name)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) cloneResource(resource registry.Resource) {
+func (c *toolbarComponent) cloneResource(resource registry.Resource) {
 	c.mdlRegistry.CloneResource(resource)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) deleteResource(resource registry.Resource) {
+func (c *toolbarComponent) deleteResource(resource registry.Resource) {
 	c.mdlRegistry.DeleteResource(resource)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) moveResourceUp(resource registry.Resource) {
+func (c *toolbarComponent) moveResourceUp(resource registry.Resource) {
 	c.mdlRegistry.MoveUp(resource)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) moveResourceDown(resource registry.Resource) {
+func (c *toolbarComponent) moveResourceDown(resource registry.Resource) {
 	c.mdlRegistry.MoveDown(resource)
 	c.saveChanges()
 }
 
-func (c *endpointManagementComponent) saveChanges() {
+func (c *toolbarComponent) saveChanges() {
 	if err := c.mdlRegistry.Save(); err != nil {
 		log.Error("Error saving registry: %v", err)
 		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {

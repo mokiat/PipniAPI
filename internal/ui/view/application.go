@@ -8,6 +8,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	registryview "github.com/mokiat/PipniAPI/internal/view/registry"
 	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
@@ -115,21 +116,21 @@ func (c *applicationComponent) Render() co.Instance {
 					})
 				}))
 
-				co.WithChild("endpoint-selection", co.New(EndpointSelection, func() {
+				co.WithChild("endpoint-selection", co.New(registryview.Explorer, func() {
 					co.WithLayoutData(layout.Data{
 						HorizontalAlignment: layout.HorizontalAlignmentCenter,
 						VerticalAlignment:   layout.VerticalAlignmentCenter,
 					})
-					co.WithData(EndpointSelectionData{
+					co.WithData(registryview.ExplorerData{
 						RegistryModel: c.mdlRegistry,
 					})
 				}))
 
-				co.WithChild("endpoint-management", co.New(EndpointManagement, func() {
+				co.WithChild("endpoint-management", co.New(registryview.Toolbar, func() {
 					co.WithLayoutData(layout.Data{
 						VerticalAlignment: layout.VerticalAlignmentBottom,
 					})
-					co.WithData(EndpointManagementData{
+					co.WithData(registryview.ToolbarData{
 						RegistryModel: c.mdlRegistry,
 					})
 				}))
