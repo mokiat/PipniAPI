@@ -8,21 +8,19 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
-	contextview "github.com/mokiat/PipniAPI/internal/view/context"
-	registryview "github.com/mokiat/PipniAPI/internal/view/registry"
+	appview "github.com/mokiat/PipniAPI/internal/view/app"
 	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
-	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
 	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Application = mvc.EventListener(co.Define(&applicationComponent{}))
+var Root = mvc.EventListener(co.Define(&rootComponent{}))
 
-type applicationComponent struct {
+type rootComponent struct {
 	co.BaseComponent
 
 	eventBus     *mvc.EventBus
@@ -31,7 +29,7 @@ type applicationComponent struct {
 	mdlWorkspace *workspace.Model
 }
 
-func (c *applicationComponent) OnCreate() {
+func (c *rootComponent) OnCreate() {
 	var loadErr error
 
 	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
@@ -65,18 +63,18 @@ func (c *applicationComponent) OnCreate() {
 	}
 }
 
-func (c *applicationComponent) Render() co.Instance {
+func (c *rootComponent) Render() co.Instance {
 	return co.New(std.Container, func() {
 		co.WithData(std.ContainerData{
 			BackgroundColor: opt.V(std.SurfaceColor),
 			Layout:          layout.Frame(),
 		})
 
-		co.WithChild("toolbar", co.New(Toolbar, func() {
+		co.WithChild("toolbar", co.New(appview.Toolbar, func() {
 			co.WithLayoutData(layout.Data{
 				VerticalAlignment: layout.VerticalAlignmentTop,
 			})
-			co.WithData(ToolbarData{})
+			co.WithData(appview.ToolbarData{})
 		}))
 
 		co.WithChild("content", co.New(std.Element, func() {
@@ -88,61 +86,24 @@ func (c *applicationComponent) Render() co.Instance {
 				Layout: layout.Frame(),
 			})
 
-			co.WithChild("drawer", co.New(std.Container, func() {
+			co.WithChild("drawer", co.New(appview.Drawer, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentLeft,
 					Width:               opt.V(300),
 				})
-				co.WithData(std.ContainerData{
-					BorderColor: opt.V(std.OutlineColor),
-					BorderSize: ui.Spacing{
-						Right: 1,
-					},
-					Padding: ui.UniformSpacing(5),
-					Layout: layout.Frame(layout.FrameSettings{
-						ContentSpacing: ui.Spacing{
-							Top:    5,
-							Bottom: 5,
-						},
-					}),
+				co.WithData(appview.DrawerData{
+					ContextModel:   c.mdlContext,
+					RegistryModel:  c.mdlRegistry,
+					WorkspaceModel: c.mdlWorkspace,
 				})
-
-				co.WithChild("environment-selection", co.New(contextview.Selector, func() {
-					co.WithLayoutData(layout.Data{
-						VerticalAlignment: layout.VerticalAlignmentTop,
-					})
-					co.WithData(contextview.SelectorData{
-						WorkspaceModel: c.mdlWorkspace,
-						ContextModel:   c.mdlContext,
-					})
-				}))
-
-				co.WithChild("endpoint-selection", co.New(registryview.Explorer, func() {
-					co.WithLayoutData(layout.Data{
-						HorizontalAlignment: layout.HorizontalAlignmentCenter,
-						VerticalAlignment:   layout.VerticalAlignmentCenter,
-					})
-					co.WithData(registryview.ExplorerData{
-						RegistryModel: c.mdlRegistry,
-					})
-				}))
-
-				co.WithChild("endpoint-management", co.New(registryview.Toolbar, func() {
-					co.WithLayoutData(layout.Data{
-						VerticalAlignment: layout.VerticalAlignmentBottom,
-					})
-					co.WithData(registryview.ToolbarData{
-						RegistryModel: c.mdlRegistry,
-					})
-				}))
 			}))
 
-			co.WithChild("workspace", co.New(Workspace, func() {
+			co.WithChild("workspace", co.New(appview.Workspace, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentCenter,
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
-				co.WithData(WorkspaceData{
+				co.WithData(appview.WorkspaceData{
 					WorkspaceModel: c.mdlWorkspace,
 					ContextModel:   c.mdlContext,
 				})
@@ -151,7 +112,7 @@ func (c *applicationComponent) Render() co.Instance {
 	})
 }
 
-func (c *applicationComponent) OnEvent(event mvc.Event) {
+func (c *rootComponent) OnEvent(event mvc.Event) {
 	switch event := event.(type) {
 	case registry.RegistrySelectionChangedEvent:
 		c.openEditorForRegistryItem(event.SelectedID)
@@ -160,7 +121,7 @@ func (c *applicationComponent) OnEvent(event mvc.Event) {
 	}
 }
 
-func (c *applicationComponent) openEditorForRegistryItem(itemID string) {
+func (c *rootComponent) openEditorForRegistryItem(itemID string) {
 	if editor := c.mdlWorkspace.FindEditor(itemID); editor != nil {
 		c.mdlWorkspace.SetSelectedID(editor.ID())
 		return
@@ -175,7 +136,7 @@ func (c *applicationComponent) openEditorForRegistryItem(itemID string) {
 	}
 }
 
-func (c *applicationComponent) selectResourceForEditor(editor workspace.Editor) {
+func (c *rootComponent) selectResourceForEditor(editor workspace.Editor) {
 	if editor != nil {
 		c.mdlRegistry.SetSelectedID(editor.ID())
 	} else {

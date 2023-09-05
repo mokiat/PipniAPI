@@ -1,4 +1,4 @@
-package view
+package app
 
 import (
 	"github.com/mokiat/gog/opt"

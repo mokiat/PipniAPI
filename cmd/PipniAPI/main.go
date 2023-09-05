@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	gameui "github.com/mokiat/PipniAPI/internal/ui"
+	"github.com/mokiat/PipniAPI/internal"
 	"github.com/mokiat/PipniAPI/resources"
 	glapp "github.com/mokiat/lacking-gl/app"
 	glui "github.com/mokiat/lacking-gl/ui"
@@ -27,7 +27,7 @@ func runApplication() error {
 	uiController := ui.NewController(
 		locator,
 		glui.NewShaderCollection(),
-		gameui.BootstrapApplication,
+		internal.BootstrapApplication,
 	)
 
 	cfg := glapp.NewConfig("Pipni API", 1024, 768)

@@ -1,7 +1,7 @@
-package ui
+package internal
 
 import (
-	"github.com/mokiat/PipniAPI/internal/ui/view"
+	"github.com/mokiat/PipniAPI/internal/view"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/mvc"
@@ -22,5 +22,5 @@ type bootstrapComponent struct {
 }
 
 func (c *bootstrapComponent) Render() co.Instance {
-	return co.New(view.Application, nil)
+	return co.New(view.Root, nil)
 }
