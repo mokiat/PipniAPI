@@ -1,0 +1,7 @@
+id: pipniapi
+name: Pipni API
+version: 0.1.0
+description: REST client application
+contact: Momchil Atanasov <momchil.dev@gmail.com>
+main: ./cmd/PipniAPI
+icon: resources/images/icon.png
