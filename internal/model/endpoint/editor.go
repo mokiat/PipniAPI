@@ -14,7 +14,9 @@ func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Ed
 		eventBus: eventBus,
 		endpoint: endpoint,
 
-		history:         state.NewHistory(),
+		history:     state.NewHistory(),
+		savedChange: nil,
+
 		method:          endpoint.Method(),
 		uri:             endpoint.URI(),
 		requestHeaders:  endpoint.Headers(),
@@ -25,12 +27,11 @@ func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Ed
 }
 
 type Editor struct {
-	workspace.NoSaveEditor
-
 	eventBus *mvc.EventBus
 	endpoint *registry.Endpoint
 
-	history *state.History
+	history     *state.History
+	savedChange state.Change
 
 	method          string
 	uri             string
@@ -46,6 +47,16 @@ func (e *Editor) ID() string {
 
 func (e *Editor) Name() string {
 	return e.endpoint.Name()
+}
+
+func (e *Editor) CanSave() bool {
+	return e.savedChange != e.history.LastChange()
+}
+
+func (e *Editor) Save() error {
+	// TODO
+	e.savedChange = e.history.LastChange()
+	return nil
 }
 
 func (e *Editor) CanUndo() bool {

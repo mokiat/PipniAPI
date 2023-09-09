@@ -11,6 +11,8 @@ import (
 	contextview "github.com/mokiat/PipniAPI/internal/view/context"
 	endpointview "github.com/mokiat/PipniAPI/internal/view/endpoint"
 	"github.com/mokiat/PipniAPI/internal/view/welcome"
+	"github.com/mokiat/PipniAPI/internal/view/widget"
+	workflowview "github.com/mokiat/PipniAPI/internal/view/workflow"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -55,8 +57,14 @@ func (c *workspaceComponent) Render() co.Instance {
 			c.mdlWorkspace.EachEditor(func(editor workspace.Editor) {
 				co.WithChild(editor.ID(), co.New(std.TabbarTab, func() {
 					co.WithData(std.TabbarTabData{
-						Icon:     c.editorImage(editor),
-						Text:     editor.Name(),
+						Icon: c.editorImage(editor),
+						Text: func() string {
+							text := editor.Name()
+							if editor.CanSave() {
+								text += " *"
+							}
+							return text
+						}(),
 						Selected: c.mdlWorkspace.SelectedEditor() == editor,
 					})
 					co.WithCallbackData(std.TabbarTabCallbackData{
@@ -95,6 +103,17 @@ func (c *workspaceComponent) Render() co.Instance {
 				})
 			}))
 
+		case *workflow.Editor:
+			co.WithChild(fmt.Sprintf("editor-%s", editor.ID()), co.New(workflowview.Editor, func() {
+				co.WithLayoutData(layout.Data{
+					HorizontalAlignment: layout.HorizontalAlignmentCenter,
+					VerticalAlignment:   layout.VerticalAlignmentCenter,
+				})
+				co.WithData(workflowview.EditorData{
+					// TODO
+				})
+			}))
+
 		case nil:
 			co.WithChild("welcome-screen", co.New(welcome.Screen, func() {
 				co.WithLayoutData(layout.Data{
@@ -102,7 +121,6 @@ func (c *workspaceComponent) Render() co.Instance {
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
 			}))
-
 		}
 	})
 }
@@ -114,6 +132,8 @@ func (c *workspaceComponent) OnEvent(event mvc.Event) {
 	case workspace.EditorRemovedEvent:
 		c.Invalidate()
 	case workspace.EditorSelectedEvent:
+		c.Invalidate()
+	case workspace.EditorModifiedEvent:
 		c.Invalidate()
 	case registry.RegistryResourceRemovedEvent:
 		c.closeEditorForResource(event.Resource)
@@ -138,8 +158,21 @@ func (c *workspaceComponent) selectEditor(editor workspace.Editor) {
 }
 
 func (c *workspaceComponent) closeEditor(editor workspace.Editor, force bool) {
-	// TODO: Check if dirty and open a confirmation dialog if dirty.
-	c.mdlWorkspace.RemoveEditor(editor)
+	if !force && editor.CanSave() {
+		co.OpenOverlay(c.Scope(), co.New(widget.ConfirmationModal, func() {
+			co.WithData(widget.ConfirmationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/warning.png"),
+				Text: "There are unsaved changes!\n\nAre you sure you want to continue?",
+			})
+			co.WithCallbackData(widget.ConfirmationModalCallbackData{
+				OnApply: func() {
+					c.closeEditor(editor, true)
+				},
+			})
+		}))
+	} else {
+		c.mdlWorkspace.RemoveEditor(editor)
+	}
 }
 
 func (c *workspaceComponent) closeEditorForResource(resource registry.Resource) {
