@@ -61,7 +61,7 @@ func (e *Endpoint) Headers() http.Header {
 }
 
 func (e *Endpoint) SetHeaders(headers http.Header) {
-	e.headers = headers
+	e.headers = headers.Clone()
 }
 
 func (e *Endpoint) Body() string {

@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
@@ -9,9 +10,10 @@ import (
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
-func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Editor {
+func NewEditor(eventBus *mvc.EventBus, reg *registry.Model, endpoint *registry.Endpoint) workspace.Editor {
 	return &Editor{
 		eventBus: eventBus,
+		reg:      reg,
 		endpoint: endpoint,
 
 		history:     state.NewHistory(),
@@ -31,6 +33,7 @@ func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Ed
 
 type Editor struct {
 	eventBus *mvc.EventBus
+	reg      *registry.Model
 	endpoint *registry.Endpoint
 
 	history     *state.History
@@ -60,7 +63,13 @@ func (e *Editor) CanSave() bool {
 }
 
 func (e *Editor) Save() error {
-	// TODO
+	e.endpoint.SetMethod(e.method)
+	e.endpoint.SetURI(e.uri)
+	e.endpoint.SetHeaders(e.requestHeaders)
+	e.endpoint.SetBody(e.requestBody)
+	if err := e.reg.Save(); err != nil {
+		return fmt.Errorf("error saving registry: %w", err)
+	}
 	e.savedChange = e.history.LastChange()
 	e.notifyModified()
 	return nil

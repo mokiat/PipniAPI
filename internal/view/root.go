@@ -132,7 +132,7 @@ func (c *rootComponent) openEditorForRegistryItem(itemID string) {
 	resource := c.mdlRegistry.Root().FindResource(itemID)
 	switch resource := resource.(type) {
 	case *registry.Endpoint:
-		c.mdlWorkspace.AppendEditor(endpoint.NewEditor(c.eventBus, resource))
+		c.mdlWorkspace.AppendEditor(endpoint.NewEditor(c.eventBus, c.mdlRegistry, resource))
 	case *registry.Workflow:
 		c.mdlWorkspace.AppendEditor(workflow.NewEditor(c.eventBus, resource))
 	}
