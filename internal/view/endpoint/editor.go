@@ -1,11 +1,15 @@
 package endpoint
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
+	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -31,6 +35,8 @@ type editorComponent struct {
 	co.BaseComponent
 
 	mdlEditor *endpoint.Editor
+
+	overlay co.Overlay
 }
 
 func (c *editorComponent) OnUpsert() {
@@ -92,6 +98,11 @@ func (c *editorComponent) Render() co.Instance {
 				co.WithData(std.EditboxData{
 					Text: c.mdlEditor.URI(),
 				})
+				co.WithCallbackData(std.EditboxCallbackData{
+					OnChanged: func(text string) {
+						c.changeURI(text)
+					},
+				})
 			}))
 
 			co.WithChild("go", co.New(std.Button, func() {
@@ -101,6 +112,9 @@ func (c *editorComponent) Render() co.Instance {
 				})
 				co.WithData(std.ButtonData{
 					Text: "GO",
+				})
+				co.WithCallbackData(std.ButtonCallbackData{
+					OnClick: c.makeRequest,
 				})
 			}))
 		}))
@@ -233,7 +247,12 @@ func (c *editorComponent) Render() co.Instance {
 
 				switch c.mdlEditor.ResponseTab() {
 				case endpoint.EditorTabBody:
-					// TODO
+					co.WithChild("body", co.New(ResponseBody, func() {
+						co.WithData(ResponseBodyData{
+							Text: c.mdlEditor.ResponseBody(),
+						})
+					}))
+
 				case endpoint.EditorTabHeaders:
 					// TODO
 				case endpoint.EditorTabStats:
@@ -248,6 +267,8 @@ func (c *editorComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
 	case endpoint.MethodChangedEvent:
 		c.Invalidate()
+	case endpoint.URIChangedEvent:
+		c.Invalidate()
 	case endpoint.RequestTabChangedEvent:
 		c.Invalidate()
 	case endpoint.ResponseTabChangedEvent:
@@ -259,10 +280,63 @@ func (c *editorComponent) changeMethod(method string) {
 	c.mdlEditor.ChangeMethod(method)
 }
 
+func (c *editorComponent) changeURI(uri string) {
+	c.mdlEditor.ChangeURI(uri)
+}
+
 func (c *editorComponent) changeRequestTab(tab endpoint.EditorTab) {
 	c.mdlEditor.SetRequestTab(tab)
 }
 
 func (c *editorComponent) changeResponseTab(tab endpoint.EditorTab) {
 	c.mdlEditor.SetResponseTab(tab)
+}
+
+func (c *editorComponent) makeRequest() {
+	ctx, ctxCancel := context.WithCancel(context.Background())
+
+	c.overlay = co.OpenOverlay(c.Scope(), co.New(ActionModal, func() {
+		co.WithCallbackData(ActionModalCallbackData{
+			OnCancel: func() {
+				ctxCancel()
+				c.overlay.Close()
+			},
+		})
+	}))
+
+	op := constructCall(c.createRequest())
+	go func() {
+		response, err := op(ctx)
+		co.Schedule(c.Scope(), func() {
+			if err := ctx.Err(); err != nil {
+				return // the request was cancelled
+			}
+			c.handleResponse(response, err)
+			c.overlay.Close()
+		})
+	}()
+}
+
+func (c *editorComponent) createRequest() *APIRequest {
+	return &APIRequest{
+		Method:  c.mdlEditor.Method(),
+		URI:     c.mdlEditor.URI(),
+		Headers: c.mdlEditor.RequestHeaders(),
+		Body:    c.mdlEditor.RequestBody(),
+	}
+}
+
+func (c *editorComponent) handleResponse(response *APIResponse, err error) {
+	if err == nil {
+		c.mdlEditor.SetResponseBody(response.Body)
+		c.mdlEditor.SetResponseHeaders(response.Headers)
+	} else {
+		log.Info("API call error: %v", err)
+		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+			co.WithData(widget.NotificationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/error.png"),
+				Text: fmt.Sprintf("Request error.\n\n%v", err.Error()),
+			})
+		}))
+	}
 }

@@ -114,7 +114,19 @@ func (e *Editor) URI() string {
 	return e.uri
 }
 
-func (e *Editor) SetURI(uri string) {
+func (e *Editor) ChangeURI(newURI string) {
+	oldURI := e.uri
+	if newURI == oldURI {
+		return
+	}
+	e.do(func() {
+		e.setURI(newURI)
+	}, func() {
+		e.setURI(oldURI)
+	})
+}
+
+func (e *Editor) setURI(uri string) {
 	if uri != e.uri {
 		e.uri = uri
 		e.eventBus.Notify(URIChangedEvent{
@@ -122,6 +134,10 @@ func (e *Editor) SetURI(uri string) {
 			URI:    uri,
 		})
 	}
+}
+
+func (e *Editor) RequestHeaders() http.Header {
+	return e.requestHeaders.Clone()
 }
 
 func (e *Editor) RequestBody() string {
@@ -150,6 +166,18 @@ func (e *Editor) SetResponseBody(body string) {
 			Body:   body,
 		})
 	}
+}
+
+func (e *Editor) ResponseHeaders() http.Header {
+	return e.responseHeaders
+}
+
+func (e *Editor) SetResponseHeaders(headers http.Header) {
+	e.responseHeaders = headers
+	e.eventBus.Notify(ResponseHeadersChangedEvent{
+		Editor:  e,
+		Headers: headers,
+	})
 }
 
 func (e *Editor) RequestTab() EditorTab {

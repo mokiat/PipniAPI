@@ -1,5 +1,7 @@
 package endpoint
 
+import "net/http"
+
 type MethodChangedEvent struct {
 	Editor *Editor
 	Method string
@@ -18,6 +20,11 @@ type RequestBodyChangedEvent struct {
 type ResponseBodyChangedEvent struct {
 	Editor *Editor
 	Body   string
+}
+
+type ResponseHeadersChangedEvent struct {
+	Editor  *Editor
+	Headers http.Header
 }
 
 type RequestTabChangedEvent struct {
