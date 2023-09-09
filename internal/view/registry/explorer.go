@@ -37,23 +37,32 @@ func (c *explorerComponent) Render() co.Instance {
 			Padding:     ui.SymmetricSpacing(0, 5),
 		})
 
-		co.WithChild("list", co.New(std.List, func() {
+		co.WithChild("scroll", co.New(std.ScrollPane, func() {
+			co.WithData(std.ScrollPaneData{
+				DisableHorizontal: true,
+			})
 
-			for _, resource := range c.mdlRegistry.Root().Resources() {
-				resource := resource
-				co.WithChild(resource.ID(), co.New(Item, func() {
-					co.WithData(ItemData{
-						Selected: c.mdlRegistry.SelectedID() == resource.ID(),
-						Icon:     c.resourceImage(resource),
-						Text:     resource.Name(),
-					})
-					co.WithCallbackData(ItemCallbackData{
-						OnClick: func() {
-							c.onResourceSelected(resource)
-						},
-					})
-				}))
-			}
+			co.WithChild("list", co.New(std.List, func() {
+				co.WithLayoutData(layout.Data{
+					GrowHorizontally: true,
+				})
+
+				for _, resource := range c.mdlRegistry.Root().Resources() {
+					resource := resource
+					co.WithChild(resource.ID(), co.New(Item, func() {
+						co.WithData(ItemData{
+							Selected: c.mdlRegistry.SelectedID() == resource.ID(),
+							Icon:     c.resourceImage(resource),
+							Text:     resource.Name(),
+						})
+						co.WithCallbackData(ItemCallbackData{
+							OnClick: func() {
+								c.onResourceSelected(resource)
+							},
+						})
+					}))
+				}
+			}))
 		}))
 	})
 }

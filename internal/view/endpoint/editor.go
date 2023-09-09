@@ -19,6 +19,13 @@ type EditorData struct {
 
 type editorComponent struct {
 	co.BaseComponent
+
+	mdlEditor *endpoint.Editor
+}
+
+func (c *editorComponent) OnUpsert() {
+	data := co.GetData[EditorData](c.Properties())
+	c.mdlEditor = data.EditorModel
 }
 
 func (c *editorComponent) Render() co.Instance {
