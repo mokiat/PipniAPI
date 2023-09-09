@@ -254,7 +254,12 @@ func (c *editorComponent) Render() co.Instance {
 					}))
 
 				case endpoint.EditorTabHeaders:
-					// TODO
+					co.WithChild("headers", co.New(ResponseHeaders, func() {
+						co.WithData(ResponseHeadersData{
+							Headers: c.mdlEditor.ResponseHeaders(),
+						})
+					}))
+
 				case endpoint.EditorTabStats:
 					// TODO
 				}
