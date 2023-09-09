@@ -74,7 +74,9 @@ func (c *rootComponent) Render() co.Instance {
 			co.WithLayoutData(layout.Data{
 				VerticalAlignment: layout.VerticalAlignmentTop,
 			})
-			co.WithData(appview.ToolbarData{})
+			co.WithData(appview.ToolbarData{
+				WorkspaceModel: c.mdlWorkspace,
+			})
 		}))
 
 		co.WithChild("content", co.New(std.Element, func() {

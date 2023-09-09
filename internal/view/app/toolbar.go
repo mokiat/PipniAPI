@@ -1,21 +1,38 @@
 package app
 
 import (
+	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
 	co "github.com/mokiat/lacking/ui/component"
+	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Toolbar = co.Define(&toolbarComponent{})
+var Toolbar = mvc.EventListener(co.Define(&toolbarComponent{}))
 
-type ToolbarData struct{}
+type ToolbarData struct {
+	WorkspaceModel *workspace.Model
+}
 
 type toolbarComponent struct {
 	co.BaseComponent
+
+	mdlWorkspace *workspace.Model
+}
+
+func (c *toolbarComponent) OnUpsert() {
+	data := co.GetData[ToolbarData](c.Properties())
+	c.mdlWorkspace = data.WorkspaceModel
 }
 
 func (c *toolbarComponent) Render() co.Instance {
+	editor := c.mdlWorkspace.SelectedEditor()
+	canSave := (editor != nil) && (editor.CanSave())
+	canUndo := (editor != nil) && (editor.CanUndo())
+	canRedo := (editor != nil) && (editor.CanRedo())
+
 	return co.New(std.Toolbar, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 
@@ -25,7 +42,7 @@ func (c *toolbarComponent) Render() co.Instance {
 				Text:  "Pipni API",
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onImport,
+				OnClick: c.importToRegistry,
 			})
 		}))
 
@@ -37,7 +54,7 @@ func (c *toolbarComponent) Render() co.Instance {
 				Enabled: opt.V(false),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onImport,
+				OnClick: c.importToRegistry,
 			})
 		}))
 
@@ -47,7 +64,7 @@ func (c *toolbarComponent) Render() co.Instance {
 				Enabled: opt.V(false),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onExport,
+				OnClick: c.exportFromRegistry,
 			})
 		}))
 
@@ -59,7 +76,7 @@ func (c *toolbarComponent) Render() co.Instance {
 				Enabled: opt.V(false),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onCut,
+				OnClick: c.cutContent,
 			})
 		}))
 
@@ -69,7 +86,7 @@ func (c *toolbarComponent) Render() co.Instance {
 				Enabled: opt.V(false),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onCopy,
+				OnClick: c.copyContent,
 			})
 		}))
 
@@ -79,7 +96,7 @@ func (c *toolbarComponent) Render() co.Instance {
 				Enabled: opt.V(false),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onPaste,
+				OnClick: c.pasteContent,
 			})
 		}))
 
@@ -88,11 +105,12 @@ func (c *toolbarComponent) Render() co.Instance {
 		co.WithChild("save", co.New(std.ToolbarButton, func() {
 			co.WithData(std.ToolbarButtonData{
 				Icon:    co.OpenImage(c.Scope(), "images/save.png"),
-				Enabled: opt.V(false),
-				// Enabled: opt.V(c.history.CanSave()),
+				Enabled: opt.V(canSave),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onSave,
+				OnClick: func() {
+					c.saveEditorChanges(editor)
+				},
 			})
 		}))
 
@@ -101,55 +119,74 @@ func (c *toolbarComponent) Render() co.Instance {
 		co.WithChild("undo", co.New(std.ToolbarButton, func() {
 			co.WithData(std.ToolbarButtonData{
 				Icon:    co.OpenImage(c.Scope(), "images/undo.png"),
-				Enabled: opt.V(false),
-				// Enabled: opt.V(c.history.CanUndo()),
+				Enabled: opt.V(canUndo),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onUndo,
+				OnClick: func() {
+					c.undoEditorChange(editor)
+				},
 			})
 		}))
 
 		co.WithChild("redo", co.New(std.ToolbarButton, func() {
 			co.WithData(std.ToolbarButtonData{
 				Icon:    co.OpenImage(c.Scope(), "images/redo.png"),
-				Enabled: opt.V(false),
-				// Enabled: opt.V(c.history.CanRedo()),
+				Enabled: opt.V(canRedo),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: c.onRedo,
+				OnClick: func() {
+					c.redoEditorChange(editor)
+				},
 			})
 		}))
 	})
 }
 
-func (c *toolbarComponent) onImport() {
+func (c *toolbarComponent) OnEvent(event mvc.Event) {
+	switch event.(type) {
+	case workspace.EditorSelectedEvent:
+		c.Invalidate()
+	case workspace.EditorModifiedEvent:
+		c.Invalidate()
+	}
+}
+
+func (c *toolbarComponent) importToRegistry() {
 	log.Info("Import")
 }
 
-func (c *toolbarComponent) onExport() {
+func (c *toolbarComponent) exportFromRegistry() {
 	log.Info("Export")
 }
 
-func (c *toolbarComponent) onCut() {
+func (c *toolbarComponent) cutContent() {
 	log.Info("Cut")
 }
 
-func (c *toolbarComponent) onCopy() {
+func (c *toolbarComponent) copyContent() {
 	log.Info("Copy")
 }
 
-func (c *toolbarComponent) onPaste() {
+func (c *toolbarComponent) pasteContent() {
 	log.Info("Paste")
 }
 
-func (c *toolbarComponent) onSave() {
-	log.Info("Save")
+func (c *toolbarComponent) saveEditorChanges(editor workspace.Editor) {
+	if err := editor.Save(); err != nil {
+		log.Error("Error saving editor changes: %v", err)
+		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+			co.WithData(widget.NotificationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/error.png"),
+				Text: "The program encountered an error.\n\nChanges could not be saved.",
+			})
+		}))
+	}
 }
 
-func (c *toolbarComponent) onUndo() {
-	log.Info("Undo")
+func (c *toolbarComponent) undoEditorChange(editor workspace.Editor) {
+	editor.Undo()
 }
 
-func (c *toolbarComponent) onRedo() {
-	log.Info("Redo")
+func (c *toolbarComponent) redoEditorChange(editor workspace.Editor) {
+	editor.Redo()
 }

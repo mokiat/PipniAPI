@@ -5,6 +5,7 @@ import (
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	"github.com/mokiat/PipniAPI/internal/state"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
@@ -12,6 +13,8 @@ func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Ed
 	return &Editor{
 		eventBus: eventBus,
 		endpoint: endpoint,
+
+		history: state.NewHistory(),
 
 		// TODO: Initialize the following from mdlEndpoint once.
 		method: http.MethodGet,
@@ -21,10 +24,11 @@ func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Ed
 
 type Editor struct {
 	workspace.NoSaveEditor
-	workspace.NoHistoryEditor
 
 	eventBus *mvc.EventBus
 	endpoint *registry.Endpoint
+
+	history *state.History
 
 	method       string
 	uri          string
@@ -40,11 +44,29 @@ func (e *Editor) Name() string {
 	return e.endpoint.Name()
 }
 
+func (e *Editor) CanUndo() bool {
+	return e.history.CanUndo()
+}
+
+func (e *Editor) Undo() {
+	e.history.Undo()
+	e.notifyModified()
+}
+
+func (e *Editor) CanRedo() bool {
+	return e.history.CanRedo()
+}
+
+func (e *Editor) Redo() {
+	e.history.Redo()
+	e.notifyModified()
+}
+
 func (e *Editor) Method() string {
 	return e.method
 }
 
-func (e *Editor) SetMethod(method string) {
+func (e *Editor) setMethod(method string) {
 	if method != e.method {
 		e.method = method
 		e.eventBus.Notify(MethodChangedEvent{
@@ -52,6 +74,18 @@ func (e *Editor) SetMethod(method string) {
 			Method: method,
 		})
 	}
+}
+
+func (e *Editor) ChangeMethod(newMethod string) {
+	oldMethod := e.method
+	if newMethod == oldMethod {
+		return
+	}
+	e.do(func() {
+		e.setMethod(newMethod)
+	}, func() {
+		e.setMethod(oldMethod)
+	})
 }
 
 func (e *Editor) URI() string {
@@ -94,4 +128,15 @@ func (e *Editor) SetResponseBody(body string) {
 			Body:   body,
 		})
 	}
+}
+
+func (e *Editor) do(apply, revert func()) {
+	e.history.Do(state.FuncChange(apply, revert))
+	e.notifyModified()
+}
+
+func (e *Editor) notifyModified() {
+	e.eventBus.Notify(workspace.EditorModifiedEvent{
+		Editor: e,
+	})
 }

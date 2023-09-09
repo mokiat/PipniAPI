@@ -13,6 +13,10 @@ type Editor interface {
 	Redo()
 }
 
+type EditorModifiedEvent struct {
+	Editor Editor
+}
+
 type NoSaveEditor struct{}
 
 func (NoSaveEditor) CanSave() bool {

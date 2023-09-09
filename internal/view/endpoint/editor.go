@@ -4,14 +4,24 @@ import (
 	"net/http"
 
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
+	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
+	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Editor = co.Define(&editorComponent{})
+var supportedMethods = []string{
+	http.MethodGet,
+	http.MethodPost,
+	http.MethodPut,
+	http.MethodPatch,
+	http.MethodDelete,
+}
+
+var Editor = mvc.EventListener(co.Define(&editorComponent{}))
 
 type EditorData struct {
 	EditorModel *endpoint.Editor
@@ -29,6 +39,13 @@ func (c *editorComponent) OnUpsert() {
 }
 
 func (c *editorComponent) Render() co.Instance {
+	methodItems := gog.Map(supportedMethods, func(method string) std.DropdownItem {
+		return std.DropdownItem{
+			Key:   method,
+			Label: method,
+		}
+	})
+
 	return co.New(std.Container, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ContainerData{
@@ -58,17 +75,13 @@ func (c *editorComponent) Render() co.Instance {
 					Width:               opt.V(100),
 				})
 				co.WithData(std.DropdownData{
-					Items: []std.DropdownItem{
-						{
-							Key:   http.MethodGet,
-							Label: http.MethodGet,
-						},
-						{
-							Key:   http.MethodPost,
-							Label: http.MethodPost,
-						},
+					Items:       methodItems,
+					SelectedKey: c.mdlEditor.Method(),
+				})
+				co.WithCallbackData(std.DropdownCallbackData{
+					OnItemSelected: func(key any) {
+						c.changeMethod(key.(string))
 					},
-					SelectedKey: http.MethodGet,
 				})
 			}))
 
@@ -129,4 +142,15 @@ func (c *editorComponent) Render() co.Instance {
 			}))
 		}))
 	})
+}
+
+func (c *editorComponent) OnEvent(event mvc.Event) {
+	switch event.(type) {
+	case endpoint.MethodChangedEvent:
+		c.Invalidate()
+	}
+}
+
+func (c *editorComponent) changeMethod(method string) {
+	c.mdlEditor.ChangeMethod(method)
 }
