@@ -14,11 +14,13 @@ func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Ed
 		eventBus: eventBus,
 		endpoint: endpoint,
 
-		history: state.NewHistory(),
-
-		// TODO: Initialize the following from mdlEndpoint once.
-		method: http.MethodGet,
-		uri:    "https://api.publicapis.org/entries",
+		history:         state.NewHistory(),
+		method:          endpoint.Method(),
+		uri:             endpoint.URI(),
+		requestHeaders:  endpoint.Headers(),
+		requestBody:     endpoint.Body(),
+		responseHeaders: make(http.Header),
+		responseBody:    "",
 	}
 }
 
@@ -30,10 +32,12 @@ type Editor struct {
 
 	history *state.History
 
-	method       string
-	uri          string
-	requestBody  string
-	responseBody string
+	method          string
+	uri             string
+	requestHeaders  http.Header
+	requestBody     string
+	responseHeaders http.Header
+	responseBody    string
 }
 
 func (e *Editor) ID() string {

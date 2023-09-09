@@ -90,7 +90,7 @@ func (c *editorComponent) Render() co.Instance {
 					HorizontalAlignment: layout.HorizontalAlignmentCenter,
 				})
 				co.WithData(std.EditboxData{
-					Text: "https://example.com",
+					Text: c.mdlEditor.URI(),
 				})
 			}))
 
