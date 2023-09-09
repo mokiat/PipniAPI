@@ -100,7 +100,7 @@ func (c *editorComponent) Render() co.Instance {
 					Width:               opt.V(100),
 				})
 				co.WithData(std.ButtonData{
-					Text: "GO", // TODO: Fix button to align text in the middle
+					Text: "GO",
 				})
 			}))
 		}))

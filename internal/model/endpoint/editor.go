@@ -56,6 +56,7 @@ func (e *Editor) CanSave() bool {
 func (e *Editor) Save() error {
 	// TODO
 	e.savedChange = e.history.LastChange()
+	e.notifyModified()
 	return nil
 }
 
