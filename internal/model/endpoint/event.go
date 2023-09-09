@@ -19,3 +19,13 @@ type ResponseBodyChangedEvent struct {
 	Editor *Editor
 	Body   string
 }
+
+type RequestTabChangedEvent struct {
+	Editor *Editor
+	Tab    EditorTab
+}
+
+type ResponseTabChangedEvent struct {
+	Editor *Editor
+	Tab    EditorTab
+}

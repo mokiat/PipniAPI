@@ -23,6 +23,9 @@ func NewEditor(eventBus *mvc.EventBus, endpoint *registry.Endpoint) workspace.Ed
 		requestBody:     endpoint.Body(),
 		responseHeaders: make(http.Header),
 		responseBody:    "",
+
+		requestTab:  EditorTabBody,
+		responseTab: EditorTabBody,
 	}
 }
 
@@ -39,6 +42,9 @@ type Editor struct {
 	requestBody     string
 	responseHeaders http.Header
 	responseBody    string
+
+	requestTab  EditorTab
+	responseTab EditorTab
 }
 
 func (e *Editor) ID() string {
@@ -146,6 +152,34 @@ func (e *Editor) SetResponseBody(body string) {
 	}
 }
 
+func (e *Editor) RequestTab() EditorTab {
+	return e.requestTab
+}
+
+func (e *Editor) SetRequestTab(tab EditorTab) {
+	if tab != e.requestTab {
+		e.requestTab = tab
+		e.eventBus.Notify(RequestTabChangedEvent{
+			Editor: e,
+			Tab:    tab,
+		})
+	}
+}
+
+func (e *Editor) ResponseTab() EditorTab {
+	return e.responseTab
+}
+
+func (e *Editor) SetResponseTab(tab EditorTab) {
+	if tab != e.responseTab {
+		e.responseTab = tab
+		e.eventBus.Notify(ResponseTabChangedEvent{
+			Editor: e,
+			Tab:    tab,
+		})
+	}
+}
+
 func (e *Editor) do(apply, revert func()) {
 	e.history.Do(state.FuncChange(apply, revert))
 	e.notifyModified()
@@ -156,3 +190,11 @@ func (e *Editor) notifyModified() {
 		Editor: e,
 	})
 }
+
+type EditorTab string
+
+const (
+	EditorTabBody    EditorTab = "body"
+	EditorTabHeaders EditorTab = "headers"
+	EditorTabStats   EditorTab = "stats"
+)

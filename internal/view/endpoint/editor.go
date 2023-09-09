@@ -121,11 +121,53 @@ func (c *editorComponent) Render() co.Instance {
 					Width:               opt.V(2000), // FIXME: Use different layout
 				})
 				co.WithData(std.ContainerData{
-					Padding:         ui.UniformSpacing(5),
-					BorderColor:     opt.V(std.OutlineColor),
-					BorderSize:      ui.UniformSpacing(1),
-					BackgroundColor: opt.V(ui.Gray()),
+					Padding:     ui.UniformSpacing(1),
+					BorderColor: opt.V(std.OutlineColor),
+					BorderSize:  ui.UniformSpacing(1),
+					Layout:      layout.Frame(),
 				})
+
+				co.WithChild("toolbar", co.New(std.Toolbar, func() {
+					co.WithLayoutData(layout.Data{
+						VerticalAlignment: layout.VerticalAlignmentTop,
+					})
+					co.WithData(std.ToolbarData{
+						Positioning: std.ToolbarPositioningTop,
+					})
+
+					co.WithChild("body", co.New(std.ToolbarButton, func() {
+						co.WithData(std.ToolbarButtonData{
+							Icon:     co.OpenImage(c.Scope(), "images/data.png"),
+							Text:     "Body",
+							Selected: c.mdlEditor.RequestTab() == endpoint.EditorTabBody,
+						})
+						co.WithCallbackData(std.ToolbarButtonCallbackData{
+							OnClick: func() {
+								c.changeRequestTab(endpoint.EditorTabBody)
+							},
+						})
+					}))
+
+					co.WithChild("headers", co.New(std.ToolbarButton, func() {
+						co.WithData(std.ToolbarButtonData{
+							Icon:     co.OpenImage(c.Scope(), "images/headers.png"),
+							Text:     "Headers",
+							Selected: c.mdlEditor.RequestTab() == endpoint.EditorTabHeaders,
+						})
+						co.WithCallbackData(std.ToolbarButtonCallbackData{
+							OnClick: func() {
+								c.changeRequestTab(endpoint.EditorTabHeaders)
+							},
+						})
+					}))
+				}))
+
+				switch c.mdlEditor.RequestTab() {
+				case endpoint.EditorTabBody:
+					// TODO
+				case endpoint.EditorTabHeaders:
+					// TODO
+				}
 			}))
 
 			co.WithChild("response", co.New(std.Container, func() {
@@ -134,11 +176,69 @@ func (c *editorComponent) Render() co.Instance {
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
 				co.WithData(std.ContainerData{
-					Padding:         ui.UniformSpacing(5),
-					BorderColor:     opt.V(std.OutlineColor),
-					BorderSize:      ui.UniformSpacing(1),
-					BackgroundColor: opt.V(ui.Gray()),
+					Padding:     ui.UniformSpacing(1),
+					BorderColor: opt.V(std.OutlineColor),
+					BorderSize:  ui.UniformSpacing(1),
+					Layout:      layout.Frame(),
 				})
+
+				co.WithChild("toolbar", co.New(std.Toolbar, func() {
+					co.WithLayoutData(layout.Data{
+						VerticalAlignment: layout.VerticalAlignmentTop,
+					})
+					co.WithData(std.ToolbarData{
+						Positioning: std.ToolbarPositioningTop,
+					})
+
+					co.WithChild("body", co.New(std.ToolbarButton, func() {
+						co.WithData(std.ToolbarButtonData{
+							Icon:     co.OpenImage(c.Scope(), "images/data.png"),
+							Text:     "Body",
+							Selected: c.mdlEditor.ResponseTab() == endpoint.EditorTabBody,
+						})
+						co.WithCallbackData(std.ToolbarButtonCallbackData{
+							OnClick: func() {
+								c.changeResponseTab(endpoint.EditorTabBody)
+							},
+						})
+					}))
+
+					co.WithChild("headers", co.New(std.ToolbarButton, func() {
+						co.WithData(std.ToolbarButtonData{
+							Icon:     co.OpenImage(c.Scope(), "images/headers.png"),
+							Text:     "Headers",
+							Selected: c.mdlEditor.ResponseTab() == endpoint.EditorTabHeaders,
+						})
+						co.WithCallbackData(std.ToolbarButtonCallbackData{
+							OnClick: func() {
+								c.changeResponseTab(endpoint.EditorTabHeaders)
+							},
+						})
+					}))
+
+					co.WithChild("stats", co.New(std.ToolbarButton, func() {
+						co.WithData(std.ToolbarButtonData{
+							Icon:     co.OpenImage(c.Scope(), "images/stats.png"),
+							Text:     "Stats",
+							Selected: c.mdlEditor.ResponseTab() == endpoint.EditorTabStats,
+							Enabled:  opt.V(false), // TODO: To be added
+						})
+						co.WithCallbackData(std.ToolbarButtonCallbackData{
+							OnClick: func() {
+								c.changeResponseTab(endpoint.EditorTabStats)
+							},
+						})
+					}))
+				}))
+
+				switch c.mdlEditor.ResponseTab() {
+				case endpoint.EditorTabBody:
+					// TODO
+				case endpoint.EditorTabHeaders:
+					// TODO
+				case endpoint.EditorTabStats:
+					// TODO
+				}
 			}))
 		}))
 	})
@@ -148,9 +248,21 @@ func (c *editorComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
 	case endpoint.MethodChangedEvent:
 		c.Invalidate()
+	case endpoint.RequestTabChangedEvent:
+		c.Invalidate()
+	case endpoint.ResponseTabChangedEvent:
+		c.Invalidate()
 	}
 }
 
 func (c *editorComponent) changeMethod(method string) {
 	c.mdlEditor.ChangeMethod(method)
+}
+
+func (c *editorComponent) changeRequestTab(tab endpoint.EditorTab) {
+	c.mdlEditor.SetRequestTab(tab)
+}
+
+func (c *editorComponent) changeResponseTab(tab endpoint.EditorTab) {
+	c.mdlEditor.SetResponseTab(tab)
 }
