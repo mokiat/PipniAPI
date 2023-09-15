@@ -178,7 +178,17 @@ func (c *editorComponent) Render() co.Instance {
 
 				switch c.mdlEditor.RequestTab() {
 				case endpoint.EditorTabBody:
-					// TODO
+					co.WithChild("body", co.New(RequestBody, func() {
+						co.WithData(RequestBodyData{
+							Text: c.mdlEditor.RequestBody(),
+						})
+						co.WithCallbackData(RequestBodyCallbackData{
+							OnChange: func(text string) {
+								c.mdlEditor.SetRequestBody(text)
+							},
+						})
+					}))
+
 				case endpoint.EditorTabHeaders:
 					// TODO
 				}
@@ -276,7 +286,11 @@ func (c *editorComponent) OnEvent(event mvc.Event) {
 		c.Invalidate()
 	case endpoint.RequestTabChangedEvent:
 		c.Invalidate()
+	case endpoint.RequestBodyChangedEvent:
+		c.Invalidate()
 	case endpoint.ResponseTabChangedEvent:
+		c.Invalidate()
+	case endpoint.ResponseBodyChangedEvent:
 		c.Invalidate()
 	}
 }

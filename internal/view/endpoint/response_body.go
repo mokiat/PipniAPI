@@ -1,9 +1,8 @@
 package endpoint
 
 import (
-	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/PipniAPI/internal/view/widget"
 	co "github.com/mokiat/lacking/ui/component"
-	"github.com/mokiat/lacking/ui/std"
 )
 
 var ResponseBody = co.Define(&responseBodyComponent{})
@@ -24,14 +23,11 @@ func (c *responseBodyComponent) OnUpsert() {
 }
 
 func (c *responseBodyComponent) Render() co.Instance {
-	// TODO: TextArea
-	return co.New(std.Label, func() {
+	return co.New(widget.CodeArea, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
-		co.WithData(std.LabelData{
-			Font:      co.OpenFont(c.Scope(), "ui:///roboto-regular.ttf"),
-			FontSize:  opt.V(float32(24.0)),
-			FontColor: opt.V(std.OnSurfaceColor),
-			Text:      c.text,
+		co.WithData(widget.CodeAreaData{
+			ReadOnly: true,
+			Code:     c.text,
 		})
 	})
 }
