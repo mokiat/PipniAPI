@@ -2,5 +2,5 @@ package resources
 
 import "embed"
 
-//go:embed images/*
+//go:embed images/* fonts/*
 var UI embed.FS
