@@ -37,11 +37,9 @@ type codeAreaComponent struct {
 	font     *ui.Font
 	fontSize float32
 
-	rowCount    int
-	columnCount int
-
-	cursorRow    int
-	cursorColumn int
+	cursorRow           int
+	cursorColumn        int
+	cursorVirtualColumn int
 
 	isReadOnly bool
 	lines      [][]rune
@@ -66,17 +64,12 @@ func (c *codeAreaComponent) OnUpsert() {
 	callbackData := co.GetOptionalCallbackData[CodeAreaCallbackData](c.Properties(), defaultCodeAreaCallbackData)
 	c.onChange = callbackData.OnChange
 
-	c.rowCount = len(c.lines)
-	c.columnCount = 0
-	for _, line := range c.lines {
-		c.columnCount = max(c.columnCount, len(line))
+	numRows := len(c.lines)
+	if c.cursorRow >= numRows {
+		c.cursorRow = numRows - 1
 	}
-
-	if c.cursorRow >= c.rowCount {
-		c.cursorRow = c.rowCount - 1
-	}
-	if c.cursorColumn > c.columnCount {
-		c.cursorColumn = c.columnCount
+	if c.cursorColumn > len(c.lines[c.cursorRow]) {
+		c.cursorColumn = len(c.lines[c.cursorRow])
 	}
 }
 
@@ -101,6 +94,13 @@ func (c *codeAreaComponent) Render() co.Instance {
 }
 
 func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
+	// TODO: Take scrolling into consideration.
+	// Use binary search to figure out the first and last lines that are visible.
+	// This should optimize rendering of large texts.
+
+	// TOOD: Determine correct size for container of line numbers based on the
+	// number of rows and the digits.
+
 	bounds := canvas.DrawBounds(element, false)
 	isFocused := element.Window().IsElementFocused(element)
 
@@ -176,140 +176,244 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 }
 
 func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+	switch event.Type {
+	case ui.KeyboardEventTypeKeyDown, ui.KeyboardEventTypeRepeat:
+		return c.onKeyboardPressEvent(element, event)
+
+	case ui.KeyboardEventTypeType:
+		return c.onKeyboardTypeEvent(element, event)
+
+	default:
+		return false
+	}
+}
+
+func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+	switch event.Code {
+
+	case ui.KeyCodeEscape:
+		element.Window().DiscardFocus()
+		return true
+
+	case ui.KeyCodeArrowUp:
+		if c.isReadOnly {
+			c.scrollUp()
+		} else {
+			c.moveCursorUp()
+		}
+		element.Invalidate()
+		return true
+
+	case ui.KeyCodeArrowDown:
+		if c.isReadOnly {
+			c.scrollDown()
+		} else {
+			c.moveCursorDown()
+		}
+		element.Invalidate()
+		return true
+
+	case ui.KeyCodeArrowLeft:
+		if c.isReadOnly {
+			c.scrollLeft()
+		} else {
+			c.moveCursorLeft()
+		}
+		element.Invalidate()
+		return true
+
+	case ui.KeyCodeArrowRight:
+		if c.isReadOnly {
+			c.scrollRight()
+		} else {
+			c.moveCursorRight()
+		}
+		element.Invalidate()
+		return true
+
+	case ui.KeyCodeBackspace:
+		if c.isReadOnly {
+			return false
+		}
+		// TODO: Check if selection
+		c.eraseLeft()
+		c.onChange(c.constructText())
+		element.Invalidate()
+		return true
+
+	case ui.KeyCodeDelete:
+		if c.isReadOnly {
+			return false
+		}
+		// TODO: Check if selection
+		c.eraseRight()
+		c.onChange(c.constructText())
+		element.Invalidate()
+		return true
+
+	case ui.KeyCodeEnter:
+		if c.isReadOnly {
+			return false
+		}
+		c.breakLine()
+		c.onChange(c.constructText())
+		element.Invalidate()
+		return true
+
+	case ui.KeyCodeTab:
+		if c.isReadOnly {
+			return false
+		}
+		c.appendCharacter('\t')
+		c.onChange(c.constructText())
+		element.Invalidate()
+		return true
+
+	default:
+		return false
+	}
+}
+
+func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	if c.isReadOnly {
 		return false
 	}
+	c.appendCharacter(event.Rune)
+	c.onChange(c.constructText())
+	return true
+}
 
-	switch event.Type {
-	case ui.KeyboardEventTypeKeyDown, ui.KeyboardEventTypeRepeat:
-		switch event.Code {
-		case ui.KeyCodeEscape:
-			element.Window().DiscardFocus()
-		case ui.KeyCodeArrowUp:
-			if c.moveCursorUp() {
-				element.Invalidate()
-				return true
-			}
-		case ui.KeyCodeArrowDown:
-			if c.moveCursorDown() {
-				element.Invalidate()
-				return true
-			}
-		case ui.KeyCodeArrowLeft:
-			if c.moveCursorLeft() {
-				element.Invalidate()
-				return true
-			}
-		case ui.KeyCodeArrowRight:
-			if c.moveCursorRight() {
-				element.Invalidate()
-				return true
-			}
-		case ui.KeyCodeBackspace:
-			if c.eraseLeft() {
-				c.onChange(c.constructText())
-				c.Invalidate()
-				element.Invalidate()
-				return true
-			}
-		case ui.KeyCodeDelete:
-			if c.eraseRight() {
-				c.onChange(c.constructText())
-				c.Invalidate()
-				element.Invalidate()
-				return true
-			}
-		case ui.KeyCodeEnter:
-			if c.splitLine() {
-				c.onChange(c.constructText())
-				c.Invalidate()
-				element.Invalidate()
-				return true
-			}
+func (c *codeAreaComponent) scrollUp() {
+	// TODO
+}
+
+func (c *codeAreaComponent) scrollDown() {
+	// TODO
+}
+
+func (c *codeAreaComponent) scrollLeft() {
+	// TODO
+}
+
+func (c *codeAreaComponent) scrollRight() {
+	// TODO
+}
+
+func (c *codeAreaComponent) trackVirtualColumn() {
+	c.cursorVirtualColumn = c.cursorColumn
+}
+
+func (c *codeAreaComponent) moveCursorUp() {
+	if c.cursorRow > 0 {
+		c.cursorRow--
+		c.cursorColumn = c.cursorVirtualColumn
+		if c.cursorColumn > len(c.lines[c.cursorRow]) {
+			c.cursorColumn = len(c.lines[c.cursorRow])
 		}
+	} else {
+		c.moveCursorToStartOfLine()
+	}
+}
 
-	case ui.KeyboardEventTypeType:
-		if c.appendCharacter(event.Rune) {
-			c.onChange(c.constructText())
-			c.Invalidate()
-			element.Invalidate()
-			return true
+func (c *codeAreaComponent) moveCursorDown() {
+	if c.cursorRow < len(c.lines)-1 {
+		c.cursorRow++
+		c.cursorColumn = c.cursorVirtualColumn
+		if c.cursorColumn > len(c.lines[c.cursorRow]) {
+			c.cursorColumn = len(c.lines[c.cursorRow])
 		}
-
+	} else {
+		c.moveCursorToEndOfLine()
 	}
-
-	return false
 }
 
-func (c *codeAreaComponent) moveCursorUp() bool {
-	if c.cursorRow == 0 {
-		return false
+func (c *codeAreaComponent) moveCursorLeft() {
+	if c.cursorColumn > 0 {
+		c.cursorColumn--
+	} else {
+		if c.cursorRow > 0 {
+			c.moveCursorUp()
+			c.moveCursorToEndOfLine()
+		}
 	}
-	c.cursorRow--
-	return true
+	c.trackVirtualColumn()
 }
 
-func (c *codeAreaComponent) moveCursorDown() bool {
-	if c.cursorRow >= c.rowCount-1 {
-		return false
+func (c *codeAreaComponent) moveCursorRight() {
+	if c.cursorColumn < len(c.lines[c.cursorRow]) {
+		c.cursorColumn++
+	} else {
+		if c.cursorRow < len(c.lines)-1 {
+			c.moveCursorDown()
+			c.moveCursorToStartOfLine()
+		}
 	}
-	c.cursorRow++
-	return true
+	c.trackVirtualColumn()
 }
 
-func (c *codeAreaComponent) moveCursorLeft() bool {
-	if c.cursorColumn == 0 {
-		return false
-	}
-	c.cursorColumn--
-	return true
+func (c *codeAreaComponent) moveCursorToStartOfLine() {
+	c.cursorColumn = 0
+	c.trackVirtualColumn()
 }
 
-func (c *codeAreaComponent) moveCursorRight() bool {
-	if c.cursorColumn >= c.columnCount {
-		return false
-	}
-	c.cursorColumn++
-	return true
+func (c *codeAreaComponent) moveCursorToEndOfLine() {
+	c.cursorColumn = len(c.lines[c.cursorRow])
+	c.trackVirtualColumn()
 }
 
-func (c *codeAreaComponent) appendCharacter(ch rune) bool {
+func (c *codeAreaComponent) appendCharacter(ch rune) {
 	line := c.lines[c.cursorRow]
-	cursorColumn := min(c.cursorColumn, len(line))
-	preCursorLine := line[:cursorColumn]
-	postCursorLine := line[cursorColumn:]
-	line = gog.Concat(
+	preCursorLine := line[:c.cursorColumn]
+	postCursorLine := line[c.cursorColumn:]
+	c.lines[c.cursorRow] = gog.Concat(
 		preCursorLine,
 		[]rune{ch},
 		postCursorLine,
 	)
-	c.lines[c.cursorRow] = line
-
-	c.columnCount = max(c.columnCount, len(line))
 	c.cursorColumn++
-	return true
+	c.trackVirtualColumn()
 }
 
-func (c *codeAreaComponent) splitLine() bool {
+func (c *codeAreaComponent) breakLine() {
 	line := c.lines[c.cursorRow]
-	cursorColumn := min(c.cursorColumn, len(line))
-	preCursorLine := line[:cursorColumn]
-	postCursorLine := line[cursorColumn:]
+	preCursorLine := line[:c.cursorColumn]
+	postCursorLine := line[c.cursorColumn:]
 	c.lines[c.cursorRow] = preCursorLine
 	c.lines = slices.Insert(c.lines, c.cursorRow+1, postCursorLine)
-	c.rowCount++
-
-	c.cursorRow++
-	c.cursorColumn = 0
-	return true
+	c.moveCursorDown()
+	c.moveCursorToStartOfLine()
 }
 
-func (c *codeAreaComponent) eraseLeft() bool {
-	return false // TODO
+func (c *codeAreaComponent) eraseLeft() {
+	if c.cursorColumn > 0 {
+		line := c.lines[c.cursorRow]
+		line = slices.Delete(line, c.cursorColumn-1, c.cursorColumn)
+		c.lines[c.cursorRow] = line
+		c.cursorColumn--
+		c.trackVirtualColumn()
+	} else {
+		if c.cursorRow > 0 {
+			movedRow := c.cursorRow
+			c.moveCursorUp()
+			c.moveCursorToEndOfLine()
+			c.lines[movedRow-1] = append(c.lines[movedRow-1], c.lines[movedRow]...)
+			c.lines = slices.Delete(c.lines, movedRow, movedRow+1)
+		}
+	}
 }
 
-func (c *codeAreaComponent) eraseRight() bool {
-	return false // TODO
+func (c *codeAreaComponent) eraseRight() {
+	if c.cursorColumn < len(c.lines[c.cursorRow]) {
+		line := c.lines[c.cursorRow]
+		line = slices.Delete(line, c.cursorColumn, c.cursorColumn+1)
+		c.lines[c.cursorRow] = line
+	} else {
+		if c.cursorRow < len(c.lines)-1 {
+			movedRow := c.cursorRow + 1
+			c.lines[movedRow-1] = append(c.lines[movedRow-1], c.lines[movedRow]...)
+			c.lines = slices.Delete(c.lines, movedRow, movedRow+1)
+		}
+	}
 }
 
 func (c *codeAreaComponent) constructText() string {
