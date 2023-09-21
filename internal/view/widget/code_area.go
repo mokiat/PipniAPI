@@ -41,6 +41,9 @@ type codeAreaComponent struct {
 	cursorColumn        int
 	cursorVirtualColumn int
 
+	selectorRow    int
+	selectorColumn int
+
 	isReadOnly bool
 	lines      [][]rune
 	onChange   func(string)
@@ -65,12 +68,10 @@ func (c *codeAreaComponent) OnUpsert() {
 	c.onChange = callbackData.OnChange
 
 	numRows := len(c.lines)
-	if c.cursorRow >= numRows {
-		c.cursorRow = numRows - 1
-	}
-	if c.cursorColumn > len(c.lines[c.cursorRow]) {
-		c.cursorColumn = len(c.lines[c.cursorRow])
-	}
+	c.cursorRow = min(c.cursorRow, numRows-1)
+	c.cursorColumn = min(c.cursorColumn, len(c.lines[c.cursorRow]))
+	c.selectorRow = min(c.selectorRow, numRows-1)
+	c.selectorColumn = min(c.selectorColumn, len(c.lines[c.selectorRow]))
 }
 
 func (c *codeAreaComponent) Render() co.Instance {
@@ -121,12 +122,13 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 		Color: std.PrimaryLightColor,
 	})
 
-	// TODO: Draw text highlighting (if selected)
+	selection := c.selection()
 
 	// Draw text content
 	linePosition := bounds.Position
 	for i, line := range c.lines {
 		lineHeight := c.font.TextSize("|", c.fontSize)
+		textPosition := sprec.Vec2Sum(linePosition, sprec.NewVec2(100.0, 0.0))
 
 		// Draw line number
 		numberPosition := sprec.Vec2Sum(linePosition, sprec.NewVec2(10.0, 0.0))
@@ -137,8 +139,21 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 			Color: std.OnSurfaceColor,
 		})
 
+		// Draw Selection
+		if selection.ContainsRow(i) {
+			fromColumn, toColumn := selection.ColumnSpan(i, len(line))
+			preSelectionSize := c.font.TextSize(string(line[:fromColumn]), c.fontSize)
+			selectionSize := c.font.TextSize(string(line[fromColumn:toColumn]), c.fontSize)
+
+			selectionPosition := sprec.Vec2Sum(textPosition, sprec.NewVec2(preSelectionSize.X, 0.0))
+			canvas.Reset()
+			canvas.Rectangle(selectionPosition, selectionSize)
+			canvas.Fill(ui.Fill{
+				Color: std.SecondaryLightColor,
+			})
+		}
+
 		// Draw text
-		textPosition := sprec.Vec2Sum(linePosition, sprec.NewVec2(100.0, 0.0))
 		canvas.Reset()
 		canvas.FillText(string(line), textPosition, ui.Typography{
 			Font:  c.font,
@@ -200,6 +215,9 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			c.scrollUp()
 		} else {
 			c.moveCursorUp()
+			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+				c.resetSelector()
+			}
 		}
 		element.Invalidate()
 		return true
@@ -209,6 +227,9 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			c.scrollDown()
 		} else {
 			c.moveCursorDown()
+			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+				c.resetSelector()
+			}
 		}
 		element.Invalidate()
 		return true
@@ -217,7 +238,14 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.isReadOnly {
 			c.scrollLeft()
 		} else {
-			c.moveCursorLeft()
+			if event.Modifiers.Contains(ui.KeyModifierShift) {
+				c.moveCursorLeft()
+			} else {
+				if !c.selection().Valid() {
+					c.moveCursorLeft()
+				}
+				c.resetSelector()
+			}
 		}
 		element.Invalidate()
 		return true
@@ -226,7 +254,14 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.isReadOnly {
 			c.scrollRight()
 		} else {
-			c.moveCursorRight()
+			if event.Modifiers.Contains(ui.KeyModifierShift) {
+				c.moveCursorRight()
+			} else {
+				if !c.selection().Valid() {
+					c.moveCursorRight()
+				}
+				c.resetSelector()
+			}
 		}
 		element.Invalidate()
 		return true
@@ -237,6 +272,9 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		}
 		// TODO: Check if selection
 		c.eraseLeft()
+		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			c.resetSelector()
+		}
 		c.onChange(c.constructText())
 		element.Invalidate()
 		return true
@@ -247,6 +285,9 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		}
 		// TODO: Check if selection
 		c.eraseRight()
+		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			c.resetSelector()
+		}
 		c.onChange(c.constructText())
 		element.Invalidate()
 		return true
@@ -256,6 +297,9 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			return false
 		}
 		c.breakLine()
+		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			c.resetSelector()
+		}
 		c.onChange(c.constructText())
 		element.Invalidate()
 		return true
@@ -265,6 +309,9 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			return false
 		}
 		c.appendCharacter('\t')
+		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			c.resetSelector()
+		}
 		c.onChange(c.constructText())
 		element.Invalidate()
 		return true
@@ -279,6 +326,7 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 		return false
 	}
 	c.appendCharacter(event.Rune)
+	c.resetSelector()
 	c.onChange(c.constructText())
 	return true
 }
@@ -301,6 +349,11 @@ func (c *codeAreaComponent) scrollRight() {
 
 func (c *codeAreaComponent) trackVirtualColumn() {
 	c.cursorVirtualColumn = c.cursorColumn
+}
+
+func (c *codeAreaComponent) resetSelector() {
+	c.selectorRow = c.cursorRow
+	c.selectorColumn = c.cursorColumn
 }
 
 func (c *codeAreaComponent) moveCursorUp() {
@@ -422,8 +475,61 @@ func (c *codeAreaComponent) constructText() string {
 	}), "\n")
 }
 
+func (c *codeAreaComponent) selection() selectionSpan {
+	switch {
+	case c.cursorRow < c.selectorRow:
+		return selectionSpan{
+			FromRow:    c.cursorRow,
+			ToRow:      c.selectorRow,
+			FromColumn: c.cursorColumn,
+			ToColumn:   c.selectorColumn,
+		}
+	case c.selectorRow < c.cursorRow:
+		return selectionSpan{
+			FromRow:    c.selectorRow,
+			ToRow:      c.cursorRow,
+			FromColumn: c.selectorColumn,
+			ToColumn:   c.cursorColumn,
+		}
+	default:
+		return selectionSpan{
+			FromRow:    c.cursorRow,
+			ToRow:      c.cursorRow,
+			FromColumn: min(c.cursorColumn, c.selectorColumn),
+			ToColumn:   max(c.cursorColumn, c.selectorColumn),
+		}
+	}
+}
+
 // TODO: Add built-in scrolling as well. The external one will not do due to auto-panning and the like.
 
 // TODO: Mouse handler as well, so that selection is possible
 
-// TODO: Make selection possible via keyboard as well (with SHIFT and ARROWS, etc)
+type selectionSpan struct {
+	FromRow    int
+	FromColumn int
+	ToRow      int
+	ToColumn   int
+}
+
+func (s selectionSpan) Valid() bool {
+	return s.FromRow != s.ToRow || s.FromColumn != s.ToColumn
+}
+
+func (s selectionSpan) ContainsRow(row int) bool {
+	return s.FromRow <= row && row <= s.ToRow
+}
+
+func (s selectionSpan) ColumnSpan(row, lineLength int) (int, int) {
+	if row == s.FromRow && row == s.ToRow {
+		return s.FromColumn, s.ToColumn
+	}
+	switch row {
+	case s.FromRow:
+		return s.FromColumn, lineLength
+	case s.ToRow:
+		return 0, s.ToColumn
+	default:
+		return 0, lineLength
+	}
+}
