@@ -112,11 +112,13 @@ func (e *Editor) ChangeMethod(newMethod string) {
 	if newMethod == oldMethod {
 		return
 	}
-	e.do(func() {
-		e.setMethod(newMethod)
-	}, func() {
-		e.setMethod(oldMethod)
-	})
+	e.do(state.FuncChange(
+		func() {
+			e.setMethod(newMethod)
+		}, func() {
+			e.setMethod(oldMethod)
+		},
+	))
 }
 
 func (e *Editor) URI() string {
@@ -128,11 +130,7 @@ func (e *Editor) ChangeURI(newURI string) {
 	if newURI == oldURI {
 		return
 	}
-	e.do(func() {
-		e.setURI(newURI)
-	}, func() {
-		e.setURI(oldURI)
-	})
+	e.do(newChangeURIChange(e, oldURI, newURI))
 }
 
 func (e *Editor) setURI(uri string) {
@@ -217,8 +215,8 @@ func (e *Editor) SetResponseTab(tab EditorTab) {
 	}
 }
 
-func (e *Editor) do(apply, revert func()) {
-	e.history.Do(state.FuncChange(apply, revert))
+func (e *Editor) do(change state.Change) {
+	e.history.Do(change)
 	e.notifyModified()
 }
 
