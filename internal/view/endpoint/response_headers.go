@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/mokiat/PipniAPI/internal/view/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
@@ -57,25 +58,25 @@ func (c *responseHeadersComponent) Render() co.Instance {
 						Layout: layout.Anchor(),
 					})
 
-					co.WithChild("name", co.New(std.Editbox, func() {
+					co.WithChild("name", co.New(widget.EditBox, func() {
 						co.WithLayoutData(layout.Data{
 							Left:  opt.V(0),
 							Width: opt.V(200),
 						})
-						co.WithData(std.EditboxData{
-							Text: name,
-							// TODO: Readonly
+						co.WithData(widget.EditBoxData{
+							ReadOnly: true,
+							Text:     name,
 						})
 					}))
 
-					co.WithChild("value", co.New(std.Editbox, func() {
+					co.WithChild("value", co.New(widget.EditBox, func() {
 						co.WithLayoutData(layout.Data{
 							Left:  opt.V(205),
 							Right: opt.V(0),
 						})
-						co.WithData(std.EditboxData{
-							Text: value,
-							// TODO: Readonly
+						co.WithData(widget.EditBoxData{
+							ReadOnly: true,
+							Text:     value,
 						})
 					}))
 				}))

@@ -22,11 +22,6 @@ type EditBoxCallbackData struct {
 	OnSubmit func(string)
 }
 
-var defaultEditBoxCallbackData = EditBoxCallbackData{
-	OnChange: func(string) {},
-	OnSubmit: func(string) {},
-}
-
 var _ ui.ElementRenderHandler = (*editBoxComponent)(nil)
 var _ ui.ElementKeyboardHandler = (*editBoxComponent)(nil)
 
@@ -57,9 +52,15 @@ func (c *editBoxComponent) OnUpsert() {
 	c.isReadOnly = data.ReadOnly
 	c.line = []rune(data.Text)
 
-	callbackData := co.GetOptionalCallbackData[EditBoxCallbackData](c.Properties(), defaultEditBoxCallbackData)
+	callbackData := co.GetCallbackData[EditBoxCallbackData](c.Properties())
 	c.onChange = callbackData.OnChange
+	if c.onChange == nil {
+		c.onChange = func(string) {}
+	}
 	c.onSubmit = callbackData.OnSubmit
+	if c.onSubmit == nil {
+		c.onSubmit = func(string) {}
+	}
 
 	c.cursorColumn = min(c.cursorColumn, len(c.line))
 	c.selectorColumn = min(c.selectorColumn, len(c.line))
@@ -73,8 +74,8 @@ func (c *editBoxComponent) Render() co.Instance {
 			Essence:   c,
 			Focusable: opt.V(true),
 			IdealSize: opt.V(ui.Size{
-				Width:  int(contentSize.X + 10),
-				Height: int(contentSize.Y),
+				Width:  int(contentSize.X + 20),
+				Height: int(28),
 			}),
 		})
 	})
@@ -105,8 +106,11 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	canvas.Push()
 	canvas.SetClipRect(5, bounds.Width()-5, 2, bounds.Height()-2)
 
-	textPosition := sprec.Vec2Sum(bounds.Position, sprec.NewVec2(5.0, 2.0))
 	textSize := c.font.TextSize(string(c.line), c.fontSize)
+	textPosition := sprec.Vec2Sum(
+		bounds.Position,
+		sprec.NewVec2(10.0, (bounds.Height()-textSize.Y)/2),
+	)
 
 	// Draw Selection
 	if c.cursorColumn != c.selectorColumn {
@@ -151,11 +155,11 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	// Highlight
 	canvas.Reset()
 	if isFocused {
-		canvas.SetStrokeColor(std.SecondaryColor)
+		canvas.SetStrokeColor(std.SecondaryLightColor)
 	} else {
-		canvas.SetStrokeColor(std.PrimaryColor)
+		canvas.SetStrokeColor(std.PrimaryLightColor)
 	}
-	canvas.SetStrokeSize(1.0)
+	canvas.SetStrokeSize(2.0)
 	canvas.RoundRectangle(
 		bounds.Position,
 		bounds.Size,
