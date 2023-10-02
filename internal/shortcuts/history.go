@@ -41,28 +41,6 @@ func IsRedo(os app.OS, event ui.KeyboardEvent) bool {
 	}
 }
 
-func IsSelectAll(os app.OS, event ui.KeyboardEvent) bool {
-	switch os {
-	case app.OSDarwin:
-		return IsKeyCombo(event,
-			ui.KeyModifiers(ui.KeyModifierSuper), ui.KeyCodeA,
-		)
-	case app.OSWindows:
-		fallthrough
-	case app.OSLinux:
-		fallthrough
-	default:
-		return IsKeyCombo(event,
-			ui.KeyModifiers(ui.KeyModifierControl), ui.KeyCodeA,
-		)
-	}
-}
-
 func IsKeyCombo(event ui.KeyboardEvent, modifiers ui.KeyModifierSet, code ui.KeyCode) bool {
 	return event.Modifiers == modifiers && event.Code == code
 }
-
-// TODO: IsLineStart
-// TODO: IsLineEnd
-// TODO: IsDocumentStart
-// TODO: IsDocumentEnd
