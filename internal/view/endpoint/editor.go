@@ -296,11 +296,11 @@ func (c *editorComponent) OnEvent(event mvc.Event) {
 }
 
 func (c *editorComponent) changeMethod(method string) {
-	c.mdlEditor.ChangeMethod(method)
+	c.mdlEditor.SetMethod(method)
 }
 
 func (c *editorComponent) changeURI(uri string) {
-	c.mdlEditor.ChangeURI(uri)
+	c.mdlEditor.SetURI(uri)
 }
 
 func (c *editorComponent) changeRequestTab(tab endpoint.EditorTab) {

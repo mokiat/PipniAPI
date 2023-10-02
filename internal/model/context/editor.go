@@ -18,7 +18,6 @@ func NewEditor(eventBus *mvc.EventBus, model *Model) workspace.Editor {
 
 type Editor struct {
 	workspace.NoSaveEditor
-	workspace.NoHistoryEditor
 
 	eventBus *mvc.EventBus
 	model    *Model

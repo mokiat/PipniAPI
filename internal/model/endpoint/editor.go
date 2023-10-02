@@ -6,7 +6,6 @@ import (
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
-	"github.com/mokiat/PipniAPI/internal/state"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
@@ -15,9 +14,6 @@ func NewEditor(eventBus *mvc.EventBus, reg *registry.Model, endpoint *registry.E
 		eventBus: eventBus,
 		reg:      reg,
 		endpoint: endpoint,
-
-		history:     state.NewHistory(),
-		savedChange: nil,
 
 		method:          endpoint.Method(),
 		uri:             endpoint.URI(),
@@ -35,9 +31,6 @@ type Editor struct {
 	eventBus *mvc.EventBus
 	reg      *registry.Model
 	endpoint *registry.Endpoint
-
-	history     *state.History
-	savedChange state.Change
 
 	method          string
 	uri             string
@@ -59,7 +52,14 @@ func (e *Editor) Name() string {
 }
 
 func (e *Editor) CanSave() bool {
-	return e.savedChange != e.history.LastChange()
+	if e.method != e.endpoint.Method() {
+		return true
+	}
+	if e.uri != e.endpoint.URI() {
+		return true
+	}
+	// TODO: Compare other fields
+	return false
 }
 
 func (e *Editor) Save() error {
@@ -70,76 +70,37 @@ func (e *Editor) Save() error {
 	if err := e.reg.Save(); err != nil {
 		return fmt.Errorf("error saving registry: %w", err)
 	}
-	e.savedChange = e.history.LastChange()
 	e.notifyModified()
 	return nil
-}
-
-func (e *Editor) CanUndo() bool {
-	return e.history.CanUndo()
-}
-
-func (e *Editor) Undo() {
-	e.history.Undo()
-	e.notifyModified()
-}
-
-func (e *Editor) CanRedo() bool {
-	return e.history.CanRedo()
-}
-
-func (e *Editor) Redo() {
-	e.history.Redo()
-	e.notifyModified()
 }
 
 func (e *Editor) Method() string {
 	return e.method
 }
 
-func (e *Editor) setMethod(method string) {
+func (e *Editor) SetMethod(method string) {
 	if method != e.method {
 		e.method = method
 		e.eventBus.Notify(MethodChangedEvent{
 			Editor: e,
 			Method: method,
 		})
+		e.notifyModified()
 	}
-}
-
-func (e *Editor) ChangeMethod(newMethod string) {
-	oldMethod := e.method
-	if newMethod == oldMethod {
-		return
-	}
-	e.do(state.FuncChange(
-		func() {
-			e.setMethod(newMethod)
-		}, func() {
-			e.setMethod(oldMethod)
-		},
-	))
 }
 
 func (e *Editor) URI() string {
 	return e.uri
 }
 
-func (e *Editor) ChangeURI(newURI string) {
-	oldURI := e.uri
-	if newURI == oldURI {
-		return
-	}
-	e.do(newChangeURIChange(e, oldURI, newURI))
-}
-
-func (e *Editor) setURI(uri string) {
-	if uri != e.uri {
-		e.uri = uri
+func (e *Editor) SetURI(newURI string) {
+	if newURI != e.uri {
+		e.uri = newURI
 		e.eventBus.Notify(URIChangedEvent{
 			Editor: e,
-			URI:    uri,
+			URI:    newURI,
 		})
+		e.notifyModified()
 	}
 }
 
@@ -158,6 +119,7 @@ func (e *Editor) SetRequestBody(body string) {
 			Editor: e,
 			Body:   body,
 		})
+		e.notifyModified()
 	}
 }
 
@@ -172,6 +134,7 @@ func (e *Editor) SetResponseBody(body string) {
 			Editor: e,
 			Body:   body,
 		})
+		e.notifyModified()
 	}
 }
 
@@ -185,6 +148,7 @@ func (e *Editor) SetResponseHeaders(headers http.Header) {
 		Editor:  e,
 		Headers: headers,
 	})
+	e.notifyModified()
 }
 
 func (e *Editor) RequestTab() EditorTab {
@@ -213,11 +177,6 @@ func (e *Editor) SetResponseTab(tab EditorTab) {
 			Tab:    tab,
 		})
 	}
-}
-
-func (e *Editor) do(change state.Change) {
-	e.history.Do(change)
-	e.notifyModified()
 }
 
 func (e *Editor) notifyModified() {

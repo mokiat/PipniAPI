@@ -6,11 +6,6 @@ type Editor interface {
 
 	CanSave() bool
 	Save() error
-
-	CanUndo() bool
-	Undo()
-	CanRedo() bool
-	Redo()
 }
 
 type EditorModifiedEvent struct {
@@ -26,17 +21,3 @@ func (NoSaveEditor) CanSave() bool {
 func (NoSaveEditor) Save() error {
 	return nil
 }
-
-type NoHistoryEditor struct{}
-
-func (NoHistoryEditor) CanUndo() bool {
-	return false
-}
-
-func (NoHistoryEditor) Undo() {}
-
-func (NoHistoryEditor) CanRedo() bool {
-	return false
-}
-
-func (NoHistoryEditor) Redo() {}

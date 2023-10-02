@@ -30,8 +30,6 @@ func (c *toolbarComponent) OnUpsert() {
 func (c *toolbarComponent) Render() co.Instance {
 	editor := c.mdlWorkspace.SelectedEditor()
 	canSave := (editor != nil) && (editor.CanSave())
-	canUndo := (editor != nil) && (editor.CanUndo())
-	canRedo := (editor != nil) && (editor.CanRedo())
 
 	return co.New(std.Toolbar, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
@@ -118,25 +116,19 @@ func (c *toolbarComponent) Render() co.Instance {
 
 		co.WithChild("undo", co.New(std.ToolbarButton, func() {
 			co.WithData(std.ToolbarButtonData{
-				Icon:    co.OpenImage(c.Scope(), "images/undo.png"),
-				Enabled: opt.V(canUndo),
+				Icon: co.OpenImage(c.Scope(), "images/undo.png"),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: func() {
-					c.undoEditorChange(editor)
-				},
+				OnClick: c.undoChange,
 			})
 		}))
 
 		co.WithChild("redo", co.New(std.ToolbarButton, func() {
 			co.WithData(std.ToolbarButtonData{
-				Icon:    co.OpenImage(c.Scope(), "images/redo.png"),
-				Enabled: opt.V(canRedo),
+				Icon: co.OpenImage(c.Scope(), "images/redo.png"),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
-				OnClick: func() {
-					c.redoEditorChange(editor)
-				},
+				OnClick: c.redoChange,
 			})
 		}))
 	})
@@ -183,10 +175,10 @@ func (c *toolbarComponent) saveEditorChanges(editor workspace.Editor) {
 	}
 }
 
-func (c *toolbarComponent) undoEditorChange(editor workspace.Editor) {
-	editor.Undo()
+func (c *toolbarComponent) undoChange() {
+	co.Window(c.Scope()).Undo()
 }
 
-func (c *toolbarComponent) redoEditorChange(editor workspace.Editor) {
-	editor.Redo()
+func (c *toolbarComponent) redoChange() {
+	co.Window(c.Scope()).Redo()
 }

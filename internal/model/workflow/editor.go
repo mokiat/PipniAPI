@@ -15,7 +15,6 @@ func NewEditor(eventBus *mvc.EventBus, workflow *registry.Workflow) workspace.Ed
 
 type Editor struct {
 	workspace.NoSaveEditor
-	workspace.NoHistoryEditor
 
 	eventBus *mvc.EventBus
 	workflow *registry.Workflow

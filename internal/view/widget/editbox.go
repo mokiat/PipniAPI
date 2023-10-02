@@ -1,13 +1,24 @@
 package widget
 
 import (
+	"time"
+
+	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/gomath/sprec"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
+	"github.com/mokiat/lacking/ui/state"
 	"github.com/mokiat/lacking/ui/std"
 	"golang.org/x/exp/slices"
+)
+
+// TODO: Add built-in scrolling. The external one will not do due to auto-panning and the like.
+// TODO: Add mouse handler, so that selection is possible
+
+const (
+	editBoxHistoryCapacity = 100
 )
 
 var EditBox = co.Define(&editBoxComponent{})
@@ -24,9 +35,12 @@ type EditBoxCallbackData struct {
 
 var _ ui.ElementRenderHandler = (*editBoxComponent)(nil)
 var _ ui.ElementKeyboardHandler = (*editBoxComponent)(nil)
+var _ ui.ElementHistoryHandler = (*editBoxComponent)(nil)
 
 type editBoxComponent struct {
 	co.BaseComponent
+
+	history *state.History
 
 	font     *ui.Font
 	fontSize float32
@@ -41,6 +55,8 @@ type editBoxComponent struct {
 }
 
 func (c *editBoxComponent) OnCreate() {
+	c.history = state.NewHistory(editBoxHistoryCapacity)
+
 	c.font = co.OpenFont(c.Scope(), "fonts/roboto-mono-regular.ttf")
 	c.fontSize = 18.0
 
@@ -51,16 +67,12 @@ func (c *editBoxComponent) OnUpsert() {
 	data := co.GetData[EditBoxData](c.Properties())
 	c.isReadOnly = data.ReadOnly
 	c.line = []rune(data.Text)
+	// TODO: Figure out what to do with history if data.Text does not match
+	// c.line.
 
-	callbackData := co.GetCallbackData[EditBoxCallbackData](c.Properties())
+	callbackData := co.GetOptionalCallbackData(c.Properties(), EditBoxCallbackData{})
 	c.onChange = callbackData.OnChange
-	if c.onChange == nil {
-		c.onChange = func(string) {}
-	}
 	c.onSubmit = callbackData.OnSubmit
-	if c.onSubmit == nil {
-		c.onSubmit = func(string) {}
-	}
 
 	c.cursorColumn = min(c.cursorColumn, len(c.line))
 	c.selectorColumn = min(c.selectorColumn, len(c.line))
@@ -171,17 +183,57 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	switch event.Type {
 	case ui.KeyboardEventTypeKeyDown, ui.KeyboardEventTypeRepeat:
-		return c.onKeyboardPressEvent(element, event)
+		consumed := c.onKeyboardPressEvent(element, event)
+		if consumed {
+			element.Invalidate()
+		}
+		return consumed
 
 	case ui.KeyboardEventTypeType:
-		return c.onKeyboardTypeEvent(element, event)
+		consumed := c.onKeyboardTypeEvent(element, event)
+		if consumed {
+			element.Invalidate()
+		}
+		return consumed
 
 	default:
 		return false
 	}
 }
 
+func (c *editBoxComponent) OnUndo(element *ui.Element) bool {
+	canUndo := c.history.CanUndo()
+	if canUndo {
+		c.history.Undo()
+		c.notifyChanged()
+	}
+	return canUndo
+}
+
+func (c *editBoxComponent) OnRedo(element *ui.Element) bool {
+	canRedo := c.history.CanRedo()
+	if canRedo {
+		c.history.Redo()
+		c.notifyChanged()
+	}
+	return canRedo
+}
+
 func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+	os := element.Window().Platform().OS()
+	if shortcuts.IsUndo(os, event) {
+		element.Window().Undo()
+		return true
+	}
+	if shortcuts.IsRedo(os, event) {
+		element.Window().Redo()
+		return true
+	}
+	if shortcuts.IsSelectAll(os, event) {
+		// TODO
+		return true
+	}
+
 	switch event.Code {
 
 	case ui.KeyCodeEscape:
@@ -195,7 +247,6 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 				c.resetSelector()
 			}
 		}
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeArrowDown:
@@ -205,7 +256,6 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 				c.resetSelector()
 			}
 		}
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeArrowLeft:
@@ -221,7 +271,6 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 				c.resetSelector()
 			}
 		}
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeArrowRight:
@@ -237,54 +286,42 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 				c.resetSelector()
 			}
 		}
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeBackspace:
 		if c.isReadOnly {
 			return false
 		}
-		// TODO: Check if selection
-		c.eraseLeft()
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
+		if c.hasSelection() {
+			c.history.Do(c.changeDeleteSelection())
+		} else {
+			c.history.Do(c.changeDeleteCharacterLeft())
 		}
-		c.onChange(string(c.line))
-		element.Invalidate()
+		c.notifyChanged()
 		return true
 
 	case ui.KeyCodeDelete:
 		if c.isReadOnly {
 			return false
 		}
-		// TODO: Check if selection
-		c.eraseRight()
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
+		if c.hasSelection() {
+			c.history.Do(c.changeDeleteSelection())
+		} else {
+			c.history.Do(c.changeDeleteCharacterRight())
 		}
-		c.onChange(string(c.line))
-		element.Invalidate()
+		c.notifyChanged()
 		return true
 
 	case ui.KeyCodeEnter:
 		if c.isReadOnly {
 			return false
 		}
-		c.onSubmit(string(c.line))
-		element.Invalidate()
+		c.notifySubmitted()
 		return true
 
 	case ui.KeyCodeTab:
-		if c.isReadOnly {
-			return false
-		}
-		c.appendCharacter('\t')
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
-		}
-		c.onChange(string(c.line))
-		element.Invalidate()
-		return true
+		event.Rune = '\t'
+		return c.onKeyboardTypeEvent(element, event)
 
 	default:
 		return false
@@ -295,10 +332,13 @@ func (c *editBoxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 	if c.isReadOnly {
 		return false
 	}
-	c.appendCharacter(event.Rune)
-	c.resetSelector()
-	c.onChange(string(c.line))
+	c.history.Do(c.changeAppendCharacter(event.Rune))
+	c.notifyChanged()
 	return true
+}
+
+func (c *editBoxComponent) hasSelection() bool {
+	return c.cursorColumn != c.selectorColumn
 }
 
 func (c *editBoxComponent) scrollLeft() {
@@ -333,30 +373,157 @@ func (c *editBoxComponent) moveCursorToEndOfLine() {
 	c.cursorColumn = len(c.line)
 }
 
-func (c *editBoxComponent) appendCharacter(ch rune) {
-	preCursorLine := c.line[:c.cursorColumn]
-	postCursorLine := c.line[c.cursorColumn:]
-	c.line = gog.Concat(
-		preCursorLine,
-		[]rune{ch},
-		postCursorLine,
-	)
-	c.cursorColumn++
-}
-
-func (c *editBoxComponent) eraseLeft() {
-	if c.cursorColumn > 0 {
-		c.line = slices.Delete(c.line, c.cursorColumn-1, c.cursorColumn)
-		c.cursorColumn--
+func (c *editBoxComponent) changeAppendCharacter(ch rune) state.Change {
+	return &editboxChange{
+		when: time.Now(),
+		forward: []func(){
+			c.actionInsertText(c.cursorColumn, []rune{ch}),
+			c.actionRelocateCursor(c.cursorColumn + 1),
+			c.actionRelocateSelector(c.cursorColumn + 1),
+		},
+		reverse: []func(){
+			c.actionRelocateSelector(c.selectorColumn),
+			c.actionRelocateCursor(c.cursorColumn),
+			c.actionDeleteText(c.cursorColumn, c.cursorColumn+1),
+		},
 	}
 }
 
-func (c *editBoxComponent) eraseRight() {
-	if c.cursorColumn < len(c.line) {
-		c.line = slices.Delete(c.line, c.cursorColumn, c.cursorColumn+1)
+func (c *editBoxComponent) changeDeleteSelection() state.Change {
+	fromColumn := min(c.cursorColumn, c.selectorColumn)
+	toColumn := max(c.cursorColumn, c.selectorColumn)
+	selectedText := slices.Clone(c.line[fromColumn:toColumn])
+	return &editboxChange{
+		when: time.Now(),
+		forward: []func(){
+			c.actionRelocateSelector(fromColumn),
+			c.actionRelocateCursor(fromColumn),
+			c.actionDeleteText(fromColumn, toColumn),
+		},
+		reverse: []func(){
+			c.actionInsertText(fromColumn, selectedText),
+			c.actionRelocateCursor(c.cursorColumn),
+			c.actionRelocateSelector(c.selectorColumn),
+		},
 	}
 }
 
-// TODO: Add built-in scrolling as well. The external one will not do due to auto-panning and the like.
+func (c *editBoxComponent) changeDeleteCharacterLeft() state.Change {
+	if c.cursorColumn <= 0 {
+		return emptyEditBoxChange()
+	}
+	deletedCharacter := c.line[c.cursorColumn-1]
+	return &editboxChange{
+		when: time.Now(),
+		forward: []func(){
+			c.actionRelocateCursor(c.cursorColumn - 1),
+			c.actionRelocateSelector(c.cursorColumn - 1),
+			c.actionDeleteText(c.cursorColumn-1, c.cursorColumn),
+		},
+		reverse: []func(){
+			c.actionInsertText(c.cursorColumn-1, []rune{deletedCharacter}),
+			c.actionRelocateSelector(c.selectorColumn),
+			c.actionRelocateCursor(c.cursorColumn),
+		},
+	}
+}
 
-// TODO: Mouse handler as well, so that selection is possible
+func (c *editBoxComponent) changeDeleteCharacterRight() state.Change {
+	if c.cursorColumn >= len(c.line) {
+		return emptyEditBoxChange()
+	}
+	deletedCharacter := c.line[c.cursorColumn]
+	return &editboxChange{
+		when: time.Now(),
+		forward: []func(){
+			c.actionRelocateCursor(c.cursorColumn),
+			c.actionRelocateSelector(c.cursorColumn),
+			c.actionDeleteText(c.cursorColumn, c.cursorColumn+1),
+		},
+		reverse: []func(){
+			c.actionInsertText(c.cursorColumn, []rune{deletedCharacter}),
+			c.actionRelocateSelector(c.selectorColumn),
+			c.actionRelocateCursor(c.cursorColumn),
+		},
+	}
+}
+
+func (c *editBoxComponent) actionInsertText(position int, text []rune) func() {
+	return func() {
+		preText := c.line[:position]
+		postText := c.line[position:]
+		c.line = gog.Concat(
+			preText,
+			text,
+			postText,
+		)
+	}
+}
+
+func (c *editBoxComponent) actionDeleteText(fromPosition, toPosition int) func() {
+	return func() {
+		c.line = slices.Delete(c.line, fromPosition, toPosition)
+	}
+}
+
+func (c *editBoxComponent) actionRelocateCursor(position int) func() {
+	return func() {
+		c.cursorColumn = position
+	}
+}
+
+func (c *editBoxComponent) actionRelocateSelector(position int) func() {
+	return func() {
+		c.selectorColumn = position
+	}
+}
+
+func (c *editBoxComponent) notifyChanged() {
+	if c.onChange != nil {
+		c.onChange(string(c.line))
+	}
+}
+
+func (c *editBoxComponent) notifySubmitted() {
+	if c.onSubmit != nil {
+		c.onSubmit(string(c.line))
+	}
+}
+
+func emptyEditBoxChange() *editboxChange {
+	return &editboxChange{
+		when: time.Now(),
+	}
+}
+
+type editboxChange struct {
+	when    time.Time
+	forward []func()
+	reverse []func()
+}
+
+func (c *editboxChange) Apply() {
+	for _, action := range c.forward {
+		action()
+	}
+}
+
+func (c *editboxChange) Revert() {
+	for _, action := range c.reverse {
+		action()
+	}
+}
+
+func (c *editboxChange) Extend(other state.Change) bool {
+	otherChange, ok := other.(*editboxChange)
+	if !ok {
+		return false
+	}
+	if otherChange.when.Sub(c.when) > 500*time.Millisecond {
+		return false
+	}
+	c.forward = append(c.forward, otherChange.forward...)
+	c.reverse = append(otherChange.reverse, c.reverse...)
+	c.when = otherChange.when
+	return true
+}
