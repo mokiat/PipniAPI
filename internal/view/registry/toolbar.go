@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
-	"github.com/mokiat/PipniAPI/internal/view/widget"
+	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"

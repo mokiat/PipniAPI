@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
-	"github.com/mokiat/PipniAPI/internal/view/widget"
+	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"

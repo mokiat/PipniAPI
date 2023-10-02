@@ -3,7 +3,7 @@ package context
 import (
 	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
-	"github.com/mokiat/PipniAPI/internal/view/widget"
+	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"

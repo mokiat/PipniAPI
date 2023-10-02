@@ -1,7 +1,7 @@
 package endpoint
 
 import (
-	"github.com/mokiat/PipniAPI/internal/view/widget"
+	"github.com/mokiat/PipniAPI/internal/widget"
 	co "github.com/mokiat/lacking/ui/component"
 )
 
