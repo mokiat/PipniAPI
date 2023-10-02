@@ -230,14 +230,14 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		return true
 	}
 	if shortcuts.IsSelectAll(os, event) {
-		// TODO
+		c.selectAll()
 		return true
 	}
 
 	switch event.Code {
 
 	case ui.KeyCodeEscape:
-		element.Window().DiscardFocus()
+		c.resetSelector()
 		return true
 
 	case ui.KeyCodeArrowUp:
@@ -339,6 +339,11 @@ func (c *editBoxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 
 func (c *editBoxComponent) hasSelection() bool {
 	return c.cursorColumn != c.selectorColumn
+}
+
+func (c *editBoxComponent) selectAll() {
+	c.selectorColumn = 0
+	c.cursorColumn = len(c.line)
 }
 
 func (c *editBoxComponent) scrollLeft() {
