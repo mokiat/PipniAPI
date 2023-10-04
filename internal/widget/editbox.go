@@ -68,9 +68,10 @@ func (c *editBoxComponent) OnCreate() {
 func (c *editBoxComponent) OnUpsert() {
 	data := co.GetData[EditBoxData](c.Properties())
 	c.isReadOnly = data.ReadOnly
+	if data.Text != string(c.line) {
+		c.history.Clear()
+	}
 	c.line = []rune(data.Text)
-	// TODO: Figure out what to do with history if data.Text does not match
-	// c.line.
 
 	callbackData := co.GetOptionalCallbackData(c.Properties(), EditBoxCallbackData{})
 	c.onChange = callbackData.OnChange
@@ -107,9 +108,6 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	// TODO: Take scrolling into consideration.
 	// Use binary search to figure out the first and last lines that are visible.
 	// This should optimize rendering of large texts.
-
-	// TOOD: Determine correct size for container of line numbers based on the
-	// number of rows and the digits.
 
 	bounds := canvas.DrawBounds(element, false)
 	paddedBounds := canvas.DrawBounds(element, true)
