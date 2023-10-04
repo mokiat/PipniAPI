@@ -15,7 +15,6 @@ import (
 )
 
 // TODO: Add built-in scrolling. The external one will not do due to auto-panning and the like.
-// TODO: Add mouse handler, so that selection is possible
 
 const (
 	editBoxHistoryCapacity = 100
@@ -35,6 +34,7 @@ type EditBoxCallbackData struct {
 
 var _ ui.ElementRenderHandler = (*editBoxComponent)(nil)
 var _ ui.ElementKeyboardHandler = (*editBoxComponent)(nil)
+var _ ui.ElementMouseHandler = (*editBoxComponent)(nil)
 var _ ui.ElementHistoryHandler = (*editBoxComponent)(nil)
 
 type editBoxComponent struct {
@@ -52,6 +52,8 @@ type editBoxComponent struct {
 	line       []rune
 	onChange   func(string)
 	onSubmit   func(string)
+
+	isDragging bool
 }
 
 func (c *editBoxComponent) OnCreate() {
@@ -80,15 +82,23 @@ func (c *editBoxComponent) OnUpsert() {
 
 func (c *editBoxComponent) Render() co.Instance {
 	contentSize := c.font.TextSize(string(c.line), c.fontSize)
+	padding := ui.Spacing{
+		Left:   10,
+		Right:  10,
+		Top:    5,
+		Bottom: 5,
+	}
+
 	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ElementData{
 			Essence:   c,
 			Focusable: opt.V(true),
 			IdealSize: opt.V(ui.Size{
-				Width:  int(contentSize.X + 20),
-				Height: int(28),
+				Width:  int(contentSize.X) + padding.Horizontal(),
+				Height: int(c.fontSize) + padding.Vertical(),
 			}),
+			Padding: padding,
 		})
 	})
 }
@@ -102,6 +112,7 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	// number of rows and the digits.
 
 	bounds := canvas.DrawBounds(element, false)
+	paddedBounds := canvas.DrawBounds(element, true)
 	isFocused := element.Window().IsElementFocused(element)
 
 	// Background
@@ -116,13 +127,15 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	})
 
 	canvas.Push()
-	canvas.SetClipRect(5, bounds.Width()-5, 2, bounds.Height()-2)
+	canvas.SetClipRect(
+		paddedBounds.X(),
+		paddedBounds.X()+paddedBounds.Width(),
+		paddedBounds.Y(),
+		paddedBounds.Y()+paddedBounds.Height(),
+	)
 
 	textSize := c.font.TextSize(string(c.line), c.fontSize)
-	textPosition := sprec.Vec2Sum(
-		bounds.Position,
-		sprec.NewVec2(10.0, (bounds.Height()-textSize.Y)/2),
-	)
+	textPosition := paddedBounds.Position
 
 	// Draw Selection
 	if c.cursorColumn != c.selectorColumn {
@@ -201,6 +214,54 @@ func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.Keyboar
 	}
 }
 
+func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
+	switch event.Type {
+	case ui.MouseEventTypeDown:
+		c.isDragging = true
+		c.cursorColumn = c.findCursorColumn(element, event.Position.X)
+		c.resetSelector()
+		element.Invalidate()
+		return true
+
+	case ui.MouseEventTypeMove: // TODO: Use dragging event
+		if c.isDragging {
+			c.cursorColumn = c.findCursorColumn(element, event.Position.X)
+			element.Invalidate()
+		}
+		return true
+
+	case ui.MouseEventTypeUp:
+		if c.isDragging {
+			c.isDragging = false
+			c.cursorColumn = c.findCursorColumn(element, event.Position.X)
+			element.Invalidate()
+		}
+	}
+
+	return false
+}
+
+func (c *editBoxComponent) findCursorColumn(element *ui.Element, x int) int {
+	x -= element.Padding().Left
+
+	bestColumn := 0
+	bestDistance := abs(x)
+
+	column := 1
+	offset := float32(0.0)
+	iterator := c.font.TextIterator(string(c.line), c.fontSize)
+	for iterator.Next() {
+		character := iterator.Character()
+		offset += character.Kern + character.Width
+		if distance := abs(x - int(offset)); distance < bestDistance {
+			bestColumn = column
+			bestDistance = distance
+		}
+		column++
+	}
+	return bestColumn
+}
+
 func (c *editBoxComponent) OnUndo(element *ui.Element) bool {
 	canUndo := c.history.CanUndo()
 	if canUndo {
@@ -237,6 +298,7 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 	switch event.Code {
 
 	case ui.KeyCodeEscape:
+		c.isDragging = false
 		c.resetSelector()
 		return true
 
@@ -531,4 +593,11 @@ func (c *editboxChange) Extend(other state.Change) bool {
 	c.reverse = append(otherChange.reverse, c.reverse...)
 	c.when = otherChange.when
 	return true
+}
+
+func abs(a int) int {
+	if a < 0 {
+		return -a
+	}
+	return a
 }
