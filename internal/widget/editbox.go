@@ -300,6 +300,24 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		c.resetSelector()
 		return true
 
+	case ui.KeyCodeHome:
+		if !c.isReadOnly {
+			c.moveCursorToStartOfLine()
+			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+				c.resetSelector()
+			}
+		}
+		return true
+
+	case ui.KeyCodeEnd:
+		if !c.isReadOnly {
+			c.moveCursorToEndOfLine()
+			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+				c.resetSelector()
+			}
+		}
+		return true
+
 	case ui.KeyCodeArrowUp:
 		if !c.isReadOnly {
 			c.moveCursorToStartOfLine()
