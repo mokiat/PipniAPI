@@ -145,9 +145,15 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 		selectionPosition := sprec.Vec2Sum(textPosition, sprec.NewVec2(preSelectionSize.X, 0.0))
 		canvas.Reset()
 		canvas.Rectangle(selectionPosition, selectionSize)
-		canvas.Fill(ui.Fill{
-			Color: std.SecondaryLightColor,
-		})
+		if isFocused {
+			canvas.Fill(ui.Fill{
+				Color: std.SecondaryLightColor,
+			})
+		} else {
+			canvas.Fill(ui.Fill{
+				Color: ui.MixColors(std.SecondaryLightColor, std.SurfaceColor, 0.75),
+			})
+		}
 	}
 
 	// Draw text
