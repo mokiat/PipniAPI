@@ -221,6 +221,9 @@ func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.Keyboar
 func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
 	switch event.Type {
 	case ui.MouseEventTypeDown:
+		if event.Button != ui.MouseButtonLeft {
+			return false
+		}
 		c.isDragging = true
 		c.cursorColumn = c.findCursorColumn(element, event.Position.X)
 		c.resetSelector()
@@ -235,6 +238,9 @@ func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 		return true
 
 	case ui.MouseEventTypeUp:
+		if event.Button != ui.MouseButtonLeft {
+			return false
+		}
 		if c.isDragging {
 			c.isDragging = false
 			c.cursorColumn = c.findCursorColumn(element, event.Position.X)
@@ -243,27 +249,6 @@ func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 	}
 
 	return false
-}
-
-func (c *editBoxComponent) findCursorColumn(element *ui.Element, x int) int {
-	x -= element.Padding().Left
-
-	bestColumn := 0
-	bestDistance := abs(x)
-
-	column := 1
-	offset := float32(0.0)
-	iterator := c.font.TextIterator(string(c.line), c.fontSize)
-	for iterator.Next() {
-		character := iterator.Character()
-		offset += character.Kern + character.Width
-		if distance := abs(x - int(offset)); distance < bestDistance {
-			bestColumn = column
-			bestDistance = distance
-		}
-		column++
-	}
-	return bestColumn
 }
 
 func (c *editBoxComponent) OnUndo(element *ui.Element) bool {
@@ -416,7 +401,11 @@ func (c *editBoxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 	if c.isReadOnly {
 		return false
 	}
-	c.history.Do(c.changeAppendCharacter(event.Rune))
+	if c.hasSelection() {
+		c.history.Do(c.changeReplaceSelection([]rune{event.Rune}))
+	} else {
+		c.history.Do(c.changeAppendCharacter(event.Rune))
+	}
 	c.notifyChanged()
 	return true
 }
@@ -474,6 +463,27 @@ func (c *editBoxComponent) changeAppendCharacter(ch rune) state.Change {
 			c.actionRelocateSelector(c.selectorColumn),
 			c.actionRelocateCursor(c.cursorColumn),
 			c.actionDeleteText(c.cursorColumn, c.cursorColumn+1),
+		},
+	}
+}
+
+func (c *editBoxComponent) changeReplaceSelection(text []rune) state.Change {
+	fromColumn := min(c.cursorColumn, c.selectorColumn)
+	toColumn := max(c.cursorColumn, c.selectorColumn)
+	selectedText := slices.Clone(c.line[fromColumn:toColumn])
+	return &editboxChange{
+		when: time.Now(),
+		forward: []func(){
+			c.actionDeleteText(fromColumn, toColumn),
+			c.actionInsertText(fromColumn, text),
+			c.actionRelocateCursor(fromColumn + len(text)),
+			c.actionRelocateSelector(fromColumn + len(text)),
+		},
+		reverse: []func(){
+			c.actionRelocateCursor(c.cursorColumn),
+			c.actionRelocateSelector(c.selectorColumn),
+			c.actionDeleteText(fromColumn, fromColumn+len(text)),
+			c.actionInsertText(fromColumn, selectedText),
 		},
 	}
 }
@@ -565,6 +575,27 @@ func (c *editBoxComponent) actionRelocateSelector(position int) func() {
 	return func() {
 		c.selectorColumn = position
 	}
+}
+
+func (c *editBoxComponent) findCursorColumn(element *ui.Element, x int) int {
+	x -= element.Padding().Left
+
+	bestColumn := 0
+	bestDistance := abs(x)
+
+	column := 1
+	offset := float32(0.0)
+	iterator := c.font.TextIterator(string(c.line), c.fontSize)
+	for iterator.Next() {
+		character := iterator.Character()
+		offset += character.Kern + character.Width
+		if distance := abs(x - int(offset)); distance < bestDistance {
+			bestColumn = column
+			bestDistance = distance
+		}
+		column++
+	}
+	return bestColumn
 }
 
 func (c *editBoxComponent) notifyChanged() {
