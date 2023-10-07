@@ -6,6 +6,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/gomath/dprec"
 	"github.com/mokiat/gomath/sprec"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -32,6 +33,7 @@ type EditBoxCallbackData struct {
 	OnSubmit func(string)
 }
 
+var _ ui.ElementResizeHandler = (*editBoxComponent)(nil)
 var _ ui.ElementRenderHandler = (*editBoxComponent)(nil)
 var _ ui.ElementKeyboardHandler = (*editBoxComponent)(nil)
 var _ ui.ElementMouseHandler = (*editBoxComponent)(nil)
@@ -52,6 +54,9 @@ type editBoxComponent struct {
 	line       []rune
 	onChange   func(string)
 	onSubmit   func(string)
+
+	offsetX    float64
+	maxOffsetX float64
 
 	isDragging bool
 }
@@ -104,11 +109,14 @@ func (c *editBoxComponent) Render() co.Instance {
 	})
 }
 
-func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
-	// TODO: Take scrolling into consideration.
-	// Use binary search to figure out the first and last lines that are visible.
-	// This should optimize rendering of large texts.
+func (c *editBoxComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
+	availableTextWidth := bounds.Width - element.Padding().Horizontal()
+	textWidth := int(c.font.TextSize(string(c.line), c.fontSize).X)
+	c.maxOffsetX = float64(max(textWidth-availableTextWidth, 0))
+	c.offsetX = dprec.Clamp(c.offsetX, 0.0, c.maxOffsetX)
+}
 
+func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	bounds := canvas.DrawBounds(element, false)
 	paddedBounds := canvas.DrawBounds(element, true)
 	isFocused := element.Window().IsElementFocused(element)
@@ -133,7 +141,7 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	)
 
 	textSize := c.font.TextSize(string(c.line), c.fontSize)
-	textPosition := paddedBounds.Position
+	textPosition := sprec.Vec2Diff(paddedBounds.Position, sprec.NewVec2(float32(c.offsetX), 0.0))
 
 	// Draw Selection
 	if c.cursorColumn != c.selectorColumn {
@@ -220,6 +228,12 @@ func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.Keyboar
 
 func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
 	switch event.Type {
+	case ui.MouseEventTypeScroll:
+		c.offsetX -= event.ScrollX * 10.0
+		c.offsetX = dprec.Clamp(c.offsetX, 0.0, c.maxOffsetX)
+		element.Invalidate()
+		return true
+
 	case ui.MouseEventTypeDown:
 		if event.Button != ui.MouseButtonLeft {
 			return false
@@ -578,7 +592,7 @@ func (c *editBoxComponent) actionRelocateSelector(position int) func() {
 }
 
 func (c *editBoxComponent) findCursorColumn(element *ui.Element, x int) int {
-	x -= element.Padding().Left
+	x -= element.Padding().Left - int(c.offsetX)
 
 	bestColumn := 0
 	bestDistance := abs(x)
