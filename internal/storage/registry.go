@@ -21,9 +21,11 @@ func LoadRegistry(in io.Reader) (*RegistryDTO, error) {
 }
 
 type RegistryDTO struct {
-	Folders   []FolderDTO   `json:"folders"`
-	Endpoints []EndpointDTO `json:"endpoints"`
-	Workflows []WorkflowDTO `json:"workflows"`
+	Folders         []FolderDTO   `json:"folders"`
+	Contexts        []ContextDTO  `json:"contexts"`
+	Endpoints       []EndpointDTO `json:"endpoints"`
+	Workflows       []WorkflowDTO `json:"workflows"`
+	ActiveContextID string        `json:"active_context_id"`
 }
 
 type FolderDTO struct {
@@ -31,6 +33,19 @@ type FolderDTO struct {
 	ParentID *string `json:"parent_id,omitempty"`
 	Name     string  `json:"name"`
 	Position int     `json:"position"`
+}
+
+type ContextDTO struct {
+	ID         string        `json:"id"`
+	FolderID   *string       `json:"folder_id,omitempty"`
+	Name       string        `json:"name"`
+	Position   int           `json:"position"`
+	Properties []PropertyDTO `json:"properties"`
+}
+
+type PropertyDTO struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type EndpointDTO struct {
