@@ -1,19 +1,44 @@
 {
   "folders": null,
+  "contexts": [
+    {
+      "id": "6fc372b1-40f7-47ab-81d0-f16fb0be244b",
+      "name": "Development",
+      "position": 0,
+      "properties": null
+    },
+    {
+      "id": "9bfdbbf5-3bc5-4b71-8e98-966e91911917",
+      "name": "Staging",
+      "position": 1,
+      "properties": null
+    },
+    {
+      "id": "faa4f231-1444-4111-be5b-15594173eb66",
+      "name": "Production",
+      "position": 2,
+      "properties": null
+    }
+  ],
   "endpoints": [
     {
       "id": "6b6289ec-9f98-4953-8022-9b9bb7d94c47",
       "name": "Create User",
-      "position": 0,
+      "position": 3,
       "method": "POST",
       "uri": "https://reqres.in/api/users",
-      "headers": null,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
       "body": "{\"name\":\"morpheus\",\"job\":\"leader\"}"
     },
     {
       "id": "b363849f-1cc7-4f5c-b894-9cb70eac537f",
       "name": "Get User",
-      "position": 1,
+      "position": 4,
       "method": "GET",
       "uri": "https://reqres.in/api/users/2",
       "headers": null,
@@ -22,7 +47,7 @@
     {
       "id": "d12cce54-ccdc-47ea-bdbf-522cb3804270",
       "name": "List Users",
-      "position": 2,
+      "position": 5,
       "method": "GET",
       "uri": "https://reqres.in/api/users",
       "headers": null,
@@ -31,7 +56,7 @@
     {
       "id": "4e0cbc6d-3f20-4a8f-b62e-b5964d6b249e",
       "name": "Delete User",
-      "position": 3,
+      "position": 6,
       "method": "DELETE",
       "uri": "https://reqres.in/api/users/2",
       "headers": null,
@@ -42,7 +67,8 @@
     {
       "id": "fabbd1ff-9129-4914-8016-2b0ce043a7a4",
       "name": "Test User Endpoints",
-      "position": 4
+      "position": 7
     }
-  ]
+  ],
+  "active_context_id": "9bfdbbf5-3bc5-4b71-8e98-966e91911917"
 }
