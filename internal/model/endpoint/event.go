@@ -1,6 +1,6 @@
 package endpoint
 
-import "net/http"
+import "github.com/mokiat/gog"
 
 type MethodChangedEvent struct {
 	Editor *Editor
@@ -12,9 +12,24 @@ type URIChangedEvent struct {
 	URI    string
 }
 
+type RequestTabChangedEvent struct {
+	Editor *Editor
+	Tab    EditorTab
+}
+
 type RequestBodyChangedEvent struct {
 	Editor *Editor
 	Body   string
+}
+
+type RequestHeadersChangedEvent struct {
+	Editor  *Editor
+	Headers []gog.KV[string, string]
+}
+
+type ResponseTabChangedEvent struct {
+	Editor *Editor
+	Tab    EditorTab
 }
 
 type ResponseBodyChangedEvent struct {
@@ -24,15 +39,5 @@ type ResponseBodyChangedEvent struct {
 
 type ResponseHeadersChangedEvent struct {
 	Editor  *Editor
-	Headers http.Header
-}
-
-type RequestTabChangedEvent struct {
-	Editor *Editor
-	Tab    EditorTab
-}
-
-type ResponseTabChangedEvent struct {
-	Editor *Editor
-	Tab    EditorTab
+	Headers []gog.KV[string, string]
 }

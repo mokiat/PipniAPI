@@ -3,9 +3,11 @@ package endpoint
 import (
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	"github.com/mokiat/gog"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
@@ -34,7 +36,7 @@ type Editor struct {
 
 	method          string
 	uri             string
-	requestHeaders  http.Header
+	requestHeaders  []gog.KV[string, string]
 	requestBody     string
 	responseHeaders http.Header
 	responseBody    string
@@ -58,7 +60,12 @@ func (e *Editor) CanSave() bool {
 	if e.uri != e.endpoint.URI() {
 		return true
 	}
-	// TODO: Compare other fields
+	if !slices.Equal(e.requestHeaders, e.endpoint.Headers()) {
+		return true
+	}
+	if e.requestBody != e.endpoint.Body() {
+		return true
+	}
 	return false
 }
 
@@ -104,8 +111,55 @@ func (e *Editor) SetURI(newURI string) {
 	}
 }
 
-func (e *Editor) RequestHeaders() http.Header {
-	return e.requestHeaders.Clone()
+func (e *Editor) RequestHeaders() []gog.KV[string, string] {
+	return slices.Clone(e.requestHeaders)
+}
+
+func (e *Editor) HTTPRequestHeaders() http.Header {
+	result := make(http.Header)
+	for _, header := range e.requestHeaders {
+		result.Add(header.Key, header.Value)
+	}
+	return result
+}
+
+func (e *Editor) AddRequestHeader() {
+	e.requestHeaders = append(e.requestHeaders, gog.KV[string, string]{
+		Key:   "",
+		Value: "",
+	})
+	e.eventBus.Notify(RequestHeadersChangedEvent{
+		Editor:  e,
+		Headers: slices.Clone(e.requestHeaders),
+	})
+	e.notifyModified()
+}
+
+func (e *Editor) SetRequestHeaderName(index int, name string) {
+	e.requestHeaders[index].Key = name
+	e.eventBus.Notify(RequestHeadersChangedEvent{
+		Editor:  e,
+		Headers: slices.Clone(e.requestHeaders),
+	})
+	e.notifyModified()
+}
+
+func (e *Editor) SetRequestHeaderValue(index int, value string) {
+	e.requestHeaders[index].Value = value
+	e.eventBus.Notify(RequestHeadersChangedEvent{
+		Editor:  e,
+		Headers: slices.Clone(e.requestHeaders),
+	})
+	e.notifyModified()
+}
+
+func (e *Editor) DeleteRequestHeader(index int) {
+	e.requestHeaders = slices.Delete(e.requestHeaders, index, index+1)
+	e.eventBus.Notify(RequestHeadersChangedEvent{
+		Editor:  e,
+		Headers: slices.Clone(e.requestHeaders),
+	})
+	e.notifyModified()
 }
 
 func (e *Editor) RequestBody() string {
@@ -145,8 +199,8 @@ func (e *Editor) ResponseHeaders() http.Header {
 func (e *Editor) SetResponseHeaders(headers http.Header) {
 	e.responseHeaders = headers
 	e.eventBus.Notify(ResponseHeadersChangedEvent{
-		Editor:  e,
-		Headers: headers,
+		Editor: e,
+		// Headers: headers,
 	})
 	e.notifyModified()
 }

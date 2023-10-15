@@ -1,8 +1,6 @@
 package registry
 
 import (
-	"net/http"
-
 	"github.com/mokiat/PipniAPI/internal/storage"
 	"github.com/mokiat/gog"
 	"golang.org/x/exp/slices"
@@ -27,13 +25,12 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 
 			method: dtoEndpoint.Method,
 			uri:    dtoEndpoint.URI,
-			headers: func() http.Header {
-				result := make(http.Header)
-				for _, header := range dtoEndpoint.Headers {
-					result.Add(header.Name, header.Value)
+			headers: gog.Map(dtoEndpoint.Headers, func(header storage.HeaderDTO) gog.KV[string, string] {
+				return gog.KV[string, string]{
+					Key:   header.Name,
+					Value: header.Value,
 				}
-				return result
-			}(),
+			}),
 			body: gog.ValueOf(dtoEndpoint.Body, ""),
 		})
 	}
@@ -69,18 +66,12 @@ func (m *Model) saveToDTO() *storage.RegistryDTO {
 
 				Method: resource.method,
 				URI:    resource.uri,
-				Headers: func() []storage.HeaderDTO {
-					var result []storage.HeaderDTO
-					for name, values := range resource.headers {
-						for _, value := range values {
-							result = append(result, storage.HeaderDTO{
-								Name:  name,
-								Value: value,
-							})
-						}
+				Headers: gog.Map(resource.headers, func(kv gog.KV[string, string]) storage.HeaderDTO {
+					return storage.HeaderDTO{
+						Name:  kv.Key,
+						Value: kv.Value,
 					}
-					return result
-				}(),
+				}),
 				Body: &resource.body,
 			})
 		case *Workflow:

@@ -171,7 +171,7 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	})
 
 	// Draw cursor
-	if !c.isReadOnly {
+	if !c.isReadOnly && isFocused {
 		preCursorText := c.line[:c.cursorColumn]
 		preCursorTextSize := c.font.TextSize(string(preCursorText), c.fontSize)
 

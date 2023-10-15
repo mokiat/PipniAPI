@@ -2,9 +2,10 @@ package registry
 
 import (
 	"fmt"
-	"net/http"
+	"slices"
 
 	"github.com/google/uuid"
+	"github.com/mokiat/gog"
 )
 
 var _ Resource = (*Endpoint)(nil)
@@ -16,7 +17,7 @@ type Endpoint struct {
 
 	method  string
 	uri     string
-	headers http.Header
+	headers []gog.KV[string, string]
 	body    string
 }
 
@@ -56,12 +57,12 @@ func (e *Endpoint) SetURI(uri string) {
 	e.uri = uri
 }
 
-func (e *Endpoint) Headers() http.Header {
-	return e.headers.Clone()
+func (e *Endpoint) Headers() []gog.KV[string, string] {
+	return slices.Clone(e.headers)
 }
 
-func (e *Endpoint) SetHeaders(headers http.Header) {
-	e.headers = headers.Clone()
+func (e *Endpoint) SetHeaders(headers []gog.KV[string, string]) {
+	e.headers = slices.Clone(headers)
 }
 
 func (e *Endpoint) Body() string {
@@ -80,7 +81,7 @@ func (e *Endpoint) Clone() Resource {
 
 		method:  e.method,
 		uri:     e.uri,
-		headers: e.headers.Clone(),
+		headers: slices.Clone(e.headers),
 		body:    e.body,
 	}
 }

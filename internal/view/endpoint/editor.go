@@ -190,7 +190,11 @@ func (c *editorComponent) Render() co.Instance {
 					}))
 
 				case endpoint.EditorTabHeaders:
-					// TODO
+					co.WithChild("headers", co.New(RequestHeaders, func() {
+						co.WithData(RequestHeadersData{
+							EditorModel: c.mdlEditor,
+						})
+					}))
 				}
 			}))
 
@@ -340,7 +344,7 @@ func (c *editorComponent) createRequest() *APIRequest {
 	return &APIRequest{
 		Method:  c.mdlEditor.Method(),
 		URI:     c.mdlEditor.URI(),
-		Headers: c.mdlEditor.RequestHeaders(),
+		Headers: c.mdlEditor.HTTPRequestHeaders(),
 		Body:    c.mdlEditor.RequestBody(),
 	}
 }
