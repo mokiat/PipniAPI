@@ -99,7 +99,7 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	// Use binary search to figure out the first and last lines that are visible.
 	// This should optimize rendering of large texts.
 
-	// TOOD: Determine correct size for container of line numbers based on the
+	// TODO: Determine correct size for container of line numbers based on the
 	// number of rows and the digits.
 
 	bounds := canvas.DrawBounds(element, false)
@@ -191,11 +191,11 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 }
 
 func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
-	switch event.Type {
-	case ui.KeyboardEventTypeKeyDown, ui.KeyboardEventTypeRepeat:
+	switch event.Action {
+	case ui.KeyboardActionDown, ui.KeyboardActionRepeat:
 		return c.onKeyboardPressEvent(element, event)
 
-	case ui.KeyboardEventTypeType:
+	case ui.KeyboardActionType:
 		return c.onKeyboardTypeEvent(element, event)
 
 	default:

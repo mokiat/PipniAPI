@@ -6,7 +6,6 @@ import (
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
-	"github.com/mokiat/gomath/dprec"
 	"github.com/mokiat/gomath/sprec"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -14,8 +13,6 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 	"golang.org/x/exp/slices"
 )
-
-// TODO: Add built-in scrolling. The external one will not do due to auto-panning and the like.
 
 const (
 	editBoxHistoryCapacity = 100
@@ -38,6 +35,7 @@ var _ ui.ElementRenderHandler = (*editBoxComponent)(nil)
 var _ ui.ElementKeyboardHandler = (*editBoxComponent)(nil)
 var _ ui.ElementMouseHandler = (*editBoxComponent)(nil)
 var _ ui.ElementHistoryHandler = (*editBoxComponent)(nil)
+var _ ui.ElementClipboardHandler = (*editBoxComponent)(nil)
 
 type editBoxComponent struct {
 	co.BaseComponent
@@ -55,8 +53,8 @@ type editBoxComponent struct {
 	onChange   func(string)
 	onSubmit   func(string)
 
-	offsetX    float64
-	maxOffsetX float64
+	offsetX    int
+	maxOffsetX int
 
 	isDragging bool
 }
@@ -112,8 +110,8 @@ func (c *editBoxComponent) Render() co.Instance {
 func (c *editBoxComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
 	availableTextWidth := bounds.Width - element.Padding().Horizontal()
 	textWidth := int(c.font.TextSize(string(c.line), c.fontSize).X)
-	c.maxOffsetX = float64(max(textWidth-availableTextWidth, 0))
-	c.offsetX = dprec.Clamp(c.offsetX, 0.0, c.maxOffsetX)
+	c.maxOffsetX = max(textWidth-availableTextWidth, 0)
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
 func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
@@ -206,15 +204,15 @@ func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 }
 
 func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
-	switch event.Type {
-	case ui.KeyboardEventTypeKeyDown, ui.KeyboardEventTypeRepeat:
+	switch event.Action {
+	case ui.KeyboardActionDown, ui.KeyboardActionRepeat:
 		consumed := c.onKeyboardPressEvent(element, event)
 		if consumed {
 			element.Invalidate()
 		}
 		return consumed
 
-	case ui.KeyboardEventTypeType:
+	case ui.KeyboardActionType:
 		consumed := c.onKeyboardTypeEvent(element, event)
 		if consumed {
 			element.Invalidate()
@@ -227,37 +225,39 @@ func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.Keyboar
 }
 
 func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
-	switch event.Type {
-	case ui.MouseEventTypeScroll:
-		c.offsetX -= event.ScrollX * 10.0
-		c.offsetX = dprec.Clamp(c.offsetX, 0.0, c.maxOffsetX)
+	switch event.Action {
+	case ui.MouseActionScroll:
+		c.offsetX -= event.ScrollX
+		c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 		element.Invalidate()
 		return true
 
-	case ui.MouseEventTypeDown:
+	case ui.MouseActionDown:
 		if event.Button != ui.MouseButtonLeft {
 			return false
 		}
 		c.isDragging = true
-		c.cursorColumn = c.findCursorColumn(element, event.Position.X)
-		c.resetSelector()
+		c.cursorColumn = c.findCursorColumn(element, event.X)
+		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			c.resetSelector()
+		}
 		element.Invalidate()
 		return true
 
-	case ui.MouseEventTypeMove: // TODO: Use dragging event
+	case ui.MouseActionMove: // TODO: Use dragging event
 		if c.isDragging {
-			c.cursorColumn = c.findCursorColumn(element, event.Position.X)
+			c.cursorColumn = c.findCursorColumn(element, event.X)
 			element.Invalidate()
 		}
 		return true
 
-	case ui.MouseEventTypeUp:
+	case ui.MouseActionUp:
 		if event.Button != ui.MouseButtonLeft {
 			return false
 		}
 		if c.isDragging {
 			c.isDragging = false
-			c.cursorColumn = c.findCursorColumn(element, event.Position.X)
+			c.cursorColumn = c.findCursorColumn(element, event.X)
 			element.Invalidate()
 		}
 	}
@@ -283,8 +283,53 @@ func (c *editBoxComponent) OnRedo(element *ui.Element) bool {
 	return canRedo
 }
 
+func (c *editBoxComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
+	switch event.Action {
+	case ui.ClipboardActionCut:
+		if c.hasSelection() {
+			text := string(c.selectedText())
+			element.Window().RequestCopy(text)
+			c.history.Do(c.changeDeleteSelection())
+			c.notifyChanged()
+		}
+		return true
+
+	case ui.ClipboardActionCopy:
+		if c.hasSelection() {
+			text := string(c.selectedText())
+			element.Window().RequestCopy(text)
+		}
+		return true
+
+	case ui.ClipboardActionPaste:
+		text := []rune(event.Text)
+		if c.hasSelection() {
+			c.history.Do(c.changeReplaceSelection(text))
+		} else {
+			c.history.Do(c.changeAppendText(text))
+		}
+		c.notifyChanged()
+		return true
+
+	default:
+		return false
+	}
+}
+
 func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	os := element.Window().Platform().OS()
+	if shortcuts.IsCut(os, event) {
+		element.Window().Cut()
+		return true
+	}
+	if shortcuts.IsCopy(os, event) {
+		element.Window().Copy()
+		return true
+	}
+	if shortcuts.IsPaste(os, event) {
+		element.Window().Paste()
+		return true
+	}
 	if shortcuts.IsUndo(os, event) {
 		element.Window().Undo()
 		return true
@@ -348,7 +393,9 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 			if event.Modifiers.Contains(ui.KeyModifierShift) {
 				c.moveCursorLeft()
 			} else {
-				if c.cursorColumn == c.selectorColumn {
+				if c.hasSelection() {
+					c.moveCursorToSelectionStart()
+				} else {
 					c.moveCursorLeft()
 				}
 				c.resetSelector()
@@ -363,7 +410,9 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 			if event.Modifiers.Contains(ui.KeyModifierShift) {
 				c.moveCursorRight()
 			} else {
-				if c.cursorColumn == c.selectorColumn {
+				if c.hasSelection() {
+					c.moveCursorToSelectionEnd()
+				} else {
 					c.moveCursorRight()
 				}
 				c.resetSelector()
@@ -418,7 +467,7 @@ func (c *editBoxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 	if c.hasSelection() {
 		c.history.Do(c.changeReplaceSelection([]rune{event.Rune}))
 	} else {
-		c.history.Do(c.changeAppendCharacter(event.Rune))
+		c.history.Do(c.changeAppendText([]rune{event.Rune}))
 	}
 	c.notifyChanged()
 	return true
@@ -426,6 +475,12 @@ func (c *editBoxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 
 func (c *editBoxComponent) hasSelection() bool {
 	return c.cursorColumn != c.selectorColumn
+}
+
+func (c *editBoxComponent) selectedText() []rune {
+	fromColumn := min(c.cursorColumn, c.selectorColumn)
+	toColumn := max(c.cursorColumn, c.selectorColumn)
+	return slices.Clone(c.line[fromColumn:toColumn])
 }
 
 func (c *editBoxComponent) selectAll() {
@@ -457,6 +512,14 @@ func (c *editBoxComponent) moveCursorRight() {
 	}
 }
 
+func (c *editBoxComponent) moveCursorToSelectionStart() {
+	c.cursorColumn = min(c.cursorColumn, c.selectorColumn)
+}
+
+func (c *editBoxComponent) moveCursorToSelectionEnd() {
+	c.cursorColumn = max(c.cursorColumn, c.selectorColumn)
+}
+
 func (c *editBoxComponent) moveCursorToStartOfLine() {
 	c.cursorColumn = 0
 }
@@ -465,18 +528,19 @@ func (c *editBoxComponent) moveCursorToEndOfLine() {
 	c.cursorColumn = len(c.line)
 }
 
-func (c *editBoxComponent) changeAppendCharacter(ch rune) state.Change {
+func (c *editBoxComponent) changeAppendText(text []rune) state.Change {
+	lng := len(text)
 	return &editboxChange{
 		when: time.Now(),
 		forward: []func(){
-			c.actionInsertText(c.cursorColumn, []rune{ch}),
-			c.actionRelocateCursor(c.cursorColumn + 1),
-			c.actionRelocateSelector(c.cursorColumn + 1),
+			c.actionInsertText(c.cursorColumn, text),
+			c.actionRelocateCursor(c.cursorColumn + lng),
+			c.actionRelocateSelector(c.cursorColumn + lng),
 		},
 		reverse: []func(){
 			c.actionRelocateSelector(c.selectorColumn),
 			c.actionRelocateCursor(c.cursorColumn),
-			c.actionDeleteText(c.cursorColumn, c.cursorColumn+1),
+			c.actionDeleteText(c.cursorColumn, c.cursorColumn+lng),
 		},
 	}
 }
