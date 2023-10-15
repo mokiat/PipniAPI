@@ -6,6 +6,7 @@ type Container interface {
 	ID() string
 	Name() string
 	Resources() []Resource
+	AllResources() []Resource
 	AppendResource(resource Resource)
 	RemoveResource(resource Resource)
 	FindResource(id string) Resource
@@ -38,6 +39,15 @@ func (c *standardContainer) Name() string {
 
 func (c *standardContainer) Resources() []Resource {
 	return c.resources
+}
+
+func (c *standardContainer) AllResources() []Resource {
+	var result []Resource
+	result = append(result, c.Resources()...)
+	for _, child := range c.children {
+		result = append(result, child.AllResources()...)
+	}
+	return result
 }
 
 func (c *standardContainer) AppendResource(resource Resource) {

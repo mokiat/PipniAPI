@@ -16,6 +16,22 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 		resources: make([]Resource, 0, len(dtoRegistry.Endpoints)+len(dtoRegistry.Workflows)),
 	}
 
+	for _, dtoContext := range dtoRegistry.Contexts {
+		positions[dtoContext.ID] = dtoContext.Position
+		root.resources = append(root.resources, &Context{
+			id:        dtoContext.ID,
+			name:      dtoContext.Name,
+			container: root,
+
+			properties: gog.Map(dtoContext.Properties, func(prop storage.PropertyDTO) gog.KV[string, string] {
+				return gog.KV[string, string]{
+					Key:   prop.Name,
+					Value: prop.Value,
+				}
+			}),
+		})
+	}
+
 	for _, dtoEndpoint := range dtoRegistry.Endpoints {
 		positions[dtoEndpoint.ID] = dtoEndpoint.Position
 		root.resources = append(root.resources, &Endpoint{
@@ -41,6 +57,7 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 			id:        dtoWorkflow.ID,
 			name:      dtoWorkflow.Name,
 			container: root,
+
 			// TODO: more fields
 		})
 	}
@@ -51,12 +68,29 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 
 	m.root = root
 	m.selectedID = ""
+	m.activeContextID = dtoRegistry.ActiveContextID
 }
 
 func (m *Model) saveToDTO() *storage.RegistryDTO {
-	result := &storage.RegistryDTO{}
+	result := &storage.RegistryDTO{
+		ActiveContextID: m.activeContextID,
+	}
 	for i, resource := range m.root.Resources() {
 		switch resource := resource.(type) {
+		case *Context:
+			result.Contexts = append(result.Contexts, storage.ContextDTO{
+				ID:       resource.id,
+				FolderID: nil, // Currently only root
+				Name:     resource.name,
+				Position: i,
+
+				Properties: gog.Map(resource.properties, func(kv gog.KV[string, string]) storage.PropertyDTO {
+					return storage.PropertyDTO{
+						Name:  kv.Key,
+						Value: kv.Value,
+					}
+				}),
+			})
 		case *Endpoint:
 			result.Endpoints = append(result.Endpoints, storage.EndpointDTO{
 				ID:       resource.id,

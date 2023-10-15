@@ -1,9 +1,7 @@
 package app
 
 import (
-	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/registry"
-	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	contextview "github.com/mokiat/PipniAPI/internal/view/context"
 	registryview "github.com/mokiat/PipniAPI/internal/view/registry"
 	"github.com/mokiat/gog/opt"
@@ -16,24 +14,18 @@ import (
 var Drawer = co.Define(&drawerComponent{})
 
 type DrawerData struct {
-	ContextModel   *context.Model
-	RegistryModel  *registry.Model
-	WorkspaceModel *workspace.Model
+	RegistryModel *registry.Model
 }
 
 type drawerComponent struct {
 	co.BaseComponent
 
-	mdlContext   *context.Model
-	mdlRegistry  *registry.Model
-	mdlWorkspace *workspace.Model
+	mdlRegistry *registry.Model
 }
 
 func (c *drawerComponent) OnUpsert() {
 	data := co.GetData[DrawerData](c.Properties())
-	c.mdlContext = data.ContextModel
 	c.mdlRegistry = data.RegistryModel
-	c.mdlWorkspace = data.WorkspaceModel
 }
 
 func (c *drawerComponent) Render() co.Instance {
@@ -58,8 +50,7 @@ func (c *drawerComponent) Render() co.Instance {
 				VerticalAlignment: layout.VerticalAlignmentTop,
 			})
 			co.WithData(contextview.SelectorData{
-				WorkspaceModel: c.mdlWorkspace,
-				ContextModel:   c.mdlContext,
+				RegistryModel: c.mdlRegistry,
 			})
 		}))
 

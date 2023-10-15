@@ -24,20 +24,17 @@ var Workspace = mvc.EventListener(co.Define(&workspaceComponent{}))
 
 type WorkspaceData struct {
 	WorkspaceModel *workspace.Model
-	ContextModel   *context.Model
 }
 
 type workspaceComponent struct {
 	co.BaseComponent
 
 	mdlWorkspace *workspace.Model
-	mdlContext   *context.Model
 }
 
 func (c *workspaceComponent) OnUpsert() {
 	data := co.GetData[WorkspaceData](c.Properties())
 	c.mdlWorkspace = data.WorkspaceModel
-	c.mdlContext = data.ContextModel
 }
 
 func (c *workspaceComponent) Render() co.Instance {
@@ -87,8 +84,7 @@ func (c *workspaceComponent) Render() co.Instance {
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
 				co.WithData(contextview.EditorData{
-					ContextModel: c.mdlContext,
-					EditorModel:  editor,
+					EditorModel: editor,
 				})
 			}))
 
@@ -110,7 +106,7 @@ func (c *workspaceComponent) Render() co.Instance {
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
 				co.WithData(workflowview.EditorData{
-					// TODO
+					EditorModel: editor,
 				})
 			}))
 
@@ -142,12 +138,12 @@ func (c *workspaceComponent) OnEvent(event mvc.Event) {
 
 func (c *workspaceComponent) editorImage(editor workspace.Editor) *ui.Image {
 	switch editor.(type) {
+	case *context.Editor:
+		return co.OpenImage(c.Scope(), "images/context.png")
 	case *endpoint.Editor:
 		return co.OpenImage(c.Scope(), "images/ping.png")
 	case *workflow.Editor:
 		return co.OpenImage(c.Scope(), "images/workflow.png")
-	case *context.Editor:
-		return co.OpenImage(c.Scope(), "images/settings.png")
 	default:
 		return nil
 	}

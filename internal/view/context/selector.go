@@ -1,14 +1,11 @@
 package context
 
 import (
-	"github.com/mokiat/PipniAPI/internal/model/context"
-	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/lacking/log"
-	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
-	"github.com/mokiat/lacking/ui/layout"
 	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
@@ -16,100 +13,78 @@ import (
 var Selector = mvc.EventListener(co.Define(&selectorComponent{}))
 
 type SelectorData struct {
-	WorkspaceModel *workspace.Model
-	ContextModel   *context.Model
+	RegistryModel *registry.Model
 }
 
 type selectorComponent struct {
 	co.BaseComponent
 
-	eventBus     *mvc.EventBus
-	mdlWorkspace *workspace.Model
-	mdlContext   *context.Model
+	eventBus    *mvc.EventBus
+	mdlRegistry *registry.Model
 }
 
 func (c *selectorComponent) OnUpsert() {
 	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
 
 	data := co.GetData[SelectorData](c.Properties())
-	c.mdlWorkspace = data.WorkspaceModel
-	c.mdlContext = data.ContextModel
+	c.mdlRegistry = data.RegistryModel
+}
+
+func (c *selectorComponent) listContexts() []*registry.Context {
+	resources := c.mdlRegistry.AllResources()
+	contextResources := gog.Select(resources, func(resource registry.Resource) bool {
+		_, ok := resource.(*registry.Context)
+		return ok
+	})
+	return gog.Map(contextResources, func(resource registry.Resource) *registry.Context {
+		return resource.(*registry.Context)
+	})
 }
 
 func (c *selectorComponent) Render() co.Instance {
-	dropdownItems := gog.Map(c.mdlContext.Environments(), func(env *context.Environment) std.DropdownItem {
+	contexts := c.listContexts()
+	dropdownItems := gog.Map(contexts, func(env *registry.Context) std.DropdownItem {
 		return std.DropdownItem{
 			Key:   env.ID(),
 			Label: env.Name(),
 		}
 	})
+
 	var selectedKey string
-	if selectedEnv := c.mdlContext.SelectedEnvironment(); selectedEnv != nil {
-		selectedKey = selectedEnv.ID()
+	selectedContext, ok := gog.FindFunc(contexts, func(context *registry.Context) bool {
+		return context.ID() == c.mdlRegistry.ActiveContextID()
+	})
+	if ok {
+		selectedKey = selectedContext.ID()
 	}
 
-	return co.New(std.Element, func() {
+	return co.New(std.Dropdown, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
-		co.WithData(std.ElementData{
-			Layout: layout.Frame(layout.FrameSettings{
-				ContentSpacing: ui.Spacing{
-					Right: 5,
-				},
-			}),
+		co.WithData(std.DropdownData{
+			Items:       dropdownItems,
+			SelectedKey: selectedKey,
 		})
-
-		co.WithChild("dropdown", co.New(std.Dropdown, func() {
-			co.WithLayoutData(layout.Data{
-				HorizontalAlignment: layout.HorizontalAlignmentCenter,
-				VerticalAlignment:   layout.VerticalAlignmentCenter,
-			})
-			co.WithData(std.DropdownData{
-				Items:       dropdownItems,
-				SelectedKey: selectedKey,
-			})
-			co.WithCallbackData(std.DropdownCallbackData{
-				OnItemSelected: c.onDropdownItemSelected,
-			})
-		}))
-
-		co.WithChild("settings", co.New(std.Button, func() {
-			co.WithLayoutData(layout.Data{
-				HorizontalAlignment: layout.HorizontalAlignmentRight,
-				VerticalAlignment:   layout.VerticalAlignmentCenter,
-			})
-			co.WithData(std.ButtonData{
-				Icon: co.OpenImage(c.Scope(), "images/settings.png"),
-			})
-			co.WithCallbackData(std.ButtonCallbackData{
-				OnClick: c.onSettingsClicked,
-			})
-		}))
+		co.WithCallbackData(std.DropdownCallbackData{
+			OnItemSelected: c.onDropdownItemSelected,
+		})
 	})
 }
 
 func (c *selectorComponent) OnEvent(event mvc.Event) {
 	switch event.(type) {
-	case context.EnvironmentSelectedEvent:
+	case registry.RegistryActiveContextChangedEvent:
 		c.Invalidate()
 	}
 }
 
 func (c *selectorComponent) onDropdownItemSelected(key any) {
-	c.mdlContext.SetSelectedID(key.(string))
+	c.mdlRegistry.SetActiveContextID(key.(string))
 	c.saveChanges()
 }
 
-func (c *selectorComponent) onSettingsClicked() {
-	if editor := c.mdlWorkspace.FindEditor(context.EditorID); editor != nil {
-		c.mdlWorkspace.SetSelectedID(editor.ID())
-	} else {
-		c.mdlWorkspace.AppendEditor(context.NewEditor(c.eventBus, c.mdlContext))
-	}
-}
-
 func (c *selectorComponent) saveChanges() {
-	if err := c.mdlContext.Save(); err != nil {
-		log.Error("Error saving context: %v", err)
+	if err := c.mdlRegistry.Save(); err != nil {
+		log.Error("Error saving registry: %v", err)
 		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
 			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),

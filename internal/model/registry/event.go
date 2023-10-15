@@ -1,5 +1,9 @@
 package registry
 
+type RegistryActiveContextChangedEvent struct {
+	Registry *Model
+}
+
 type RegistrySelectionChangedEvent struct {
 	Registry   *Model
 	SelectedID string

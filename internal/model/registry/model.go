@@ -30,12 +30,30 @@ type Model struct {
 	eventBus    *mvc.EventBus
 	cfgFileName string
 
-	root       Container
-	selectedID string
+	root            Container
+	selectedID      string
+	activeContextID string
 }
 
 func (m *Model) Root() Container {
 	return m.root
+}
+
+func (m *Model) AllResources() []Resource {
+	return m.root.AllResources()
+}
+
+func (m *Model) ActiveContextID() string {
+	return m.activeContextID
+}
+
+func (m *Model) SetActiveContextID(activeID string) {
+	if activeID != m.activeContextID {
+		m.activeContextID = activeID
+		m.eventBus.Notify(RegistryActiveContextChangedEvent{
+			Registry: m,
+		})
+	}
 }
 
 func (m *Model) SelectedID() string {

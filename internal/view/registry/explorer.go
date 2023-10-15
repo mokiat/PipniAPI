@@ -82,6 +82,8 @@ func (c *explorerComponent) onResourceSelected(resource registry.Resource) {
 
 func (c *explorerComponent) resourceImage(resource registry.Resource) *ui.Image {
 	switch resource.(type) {
+	case *registry.Context:
+		return co.OpenImage(c.Scope(), "images/context.png")
 	case *registry.Endpoint:
 		return co.OpenImage(c.Scope(), "images/ping.png")
 	case *registry.Workflow:

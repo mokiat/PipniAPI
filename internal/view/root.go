@@ -24,7 +24,6 @@ type rootComponent struct {
 	co.BaseComponent
 
 	eventBus     *mvc.EventBus
-	mdlContext   *context.Model
 	mdlRegistry  *registry.Model
 	mdlWorkspace *workspace.Model
 }
@@ -33,14 +32,6 @@ func (c *rootComponent) OnCreate() {
 	var loadErr error
 
 	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
-
-	c.mdlContext = context.NewModel(c.eventBus, "context.json")
-	if err := c.mdlContext.Load(); err != nil {
-		c.mdlContext.Clear() // start with blank
-		if !errors.Is(err, context.ErrContextNotFound) {
-			loadErr = errors.Join(loadErr, err)
-		}
-	}
 
 	c.mdlRegistry = registry.NewModel(c.eventBus, "registry.json")
 	if err := c.mdlRegistry.Load(); err != nil {
@@ -94,9 +85,7 @@ func (c *rootComponent) Render() co.Instance {
 					Width:               opt.V(300),
 				})
 				co.WithData(appview.DrawerData{
-					ContextModel:   c.mdlContext,
-					RegistryModel:  c.mdlRegistry,
-					WorkspaceModel: c.mdlWorkspace,
+					RegistryModel: c.mdlRegistry,
 				})
 			}))
 
@@ -107,7 +96,6 @@ func (c *rootComponent) Render() co.Instance {
 				})
 				co.WithData(appview.WorkspaceData{
 					WorkspaceModel: c.mdlWorkspace,
-					ContextModel:   c.mdlContext,
 				})
 			}))
 		}))
@@ -131,6 +119,8 @@ func (c *rootComponent) openEditorForRegistryItem(itemID string) {
 
 	resource := c.mdlRegistry.Root().FindResource(itemID)
 	switch resource := resource.(type) {
+	case *registry.Context:
+		c.mdlWorkspace.AppendEditor(context.NewEditor(c.eventBus, c.mdlRegistry, resource))
 	case *registry.Endpoint:
 		c.mdlWorkspace.AppendEditor(endpoint.NewEditor(c.eventBus, c.mdlRegistry, resource))
 	case *registry.Workflow:
