@@ -19,10 +19,10 @@ func NewEditor(eventBus *mvc.EventBus, reg *registry.Model, endpoint *registry.E
 
 		method:          endpoint.Method(),
 		uri:             endpoint.URI(),
-		requestHeaders:  endpoint.Headers(),
 		requestBody:     endpoint.Body(),
-		responseHeaders: make(http.Header),
+		requestHeaders:  endpoint.Headers(),
 		responseBody:    "",
+		responseHeaders: nil,
 
 		requestTab:  EditorTabBody,
 		responseTab: EditorTabBody,
@@ -34,15 +34,16 @@ type Editor struct {
 	reg      *registry.Model
 	endpoint *registry.Endpoint
 
-	method          string
-	uri             string
-	requestHeaders  []gog.KV[string, string]
-	requestBody     string
-	responseHeaders http.Header
-	responseBody    string
+	method string
+	uri    string
 
-	requestTab  EditorTab
-	responseTab EditorTab
+	requestTab     EditorTab
+	requestBody    string
+	requestHeaders []gog.KV[string, string]
+
+	responseTab     EditorTab
+	responseBody    string
+	responseHeaders []gog.KV[string, string]
 }
 
 func (e *Editor) ID() string {
@@ -90,7 +91,6 @@ func (e *Editor) SetMethod(method string) {
 		e.method = method
 		e.eventBus.Notify(MethodChangedEvent{
 			Editor: e,
-			Method: method,
 		})
 		e.notifyModified()
 	}
@@ -105,7 +105,6 @@ func (e *Editor) SetURI(newURI string) {
 		e.uri = newURI
 		e.eventBus.Notify(URIChangedEvent{
 			Editor: e,
-			URI:    newURI,
 		})
 		e.notifyModified()
 	}
@@ -129,8 +128,7 @@ func (e *Editor) AddRequestHeader() {
 		Value: "",
 	})
 	e.eventBus.Notify(RequestHeadersChangedEvent{
-		Editor:  e,
-		Headers: slices.Clone(e.requestHeaders),
+		Editor: e,
 	})
 	e.notifyModified()
 }
@@ -138,8 +136,7 @@ func (e *Editor) AddRequestHeader() {
 func (e *Editor) SetRequestHeaderName(index int, name string) {
 	e.requestHeaders[index].Key = name
 	e.eventBus.Notify(RequestHeadersChangedEvent{
-		Editor:  e,
-		Headers: slices.Clone(e.requestHeaders),
+		Editor: e,
 	})
 	e.notifyModified()
 }
@@ -147,8 +144,7 @@ func (e *Editor) SetRequestHeaderName(index int, name string) {
 func (e *Editor) SetRequestHeaderValue(index int, value string) {
 	e.requestHeaders[index].Value = value
 	e.eventBus.Notify(RequestHeadersChangedEvent{
-		Editor:  e,
-		Headers: slices.Clone(e.requestHeaders),
+		Editor: e,
 	})
 	e.notifyModified()
 }
@@ -156,8 +152,7 @@ func (e *Editor) SetRequestHeaderValue(index int, value string) {
 func (e *Editor) DeleteRequestHeader(index int) {
 	e.requestHeaders = slices.Delete(e.requestHeaders, index, index+1)
 	e.eventBus.Notify(RequestHeadersChangedEvent{
-		Editor:  e,
-		Headers: slices.Clone(e.requestHeaders),
+		Editor: e,
 	})
 	e.notifyModified()
 }
@@ -171,7 +166,6 @@ func (e *Editor) SetRequestBody(body string) {
 		e.requestBody = body
 		e.eventBus.Notify(RequestBodyChangedEvent{
 			Editor: e,
-			Body:   body,
 		})
 		e.notifyModified()
 	}
@@ -186,23 +180,27 @@ func (e *Editor) SetResponseBody(body string) {
 		e.responseBody = body
 		e.eventBus.Notify(ResponseBodyChangedEvent{
 			Editor: e,
-			Body:   body,
 		})
-		e.notifyModified()
 	}
 }
 
-func (e *Editor) ResponseHeaders() http.Header {
+func (e *Editor) ResponseHeaders() []gog.KV[string, string] {
 	return e.responseHeaders
 }
 
-func (e *Editor) SetResponseHeaders(headers http.Header) {
-	e.responseHeaders = headers
+func (e *Editor) SetHTTPResponseHeaders(headers http.Header) {
+	e.responseHeaders = e.responseHeaders[:0]
+	for name, values := range headers {
+		for _, value := range values {
+			e.responseHeaders = append(e.responseHeaders, gog.KV[string, string]{
+				Key:   name,
+				Value: value,
+			})
+		}
+	}
 	e.eventBus.Notify(ResponseHeadersChangedEvent{
 		Editor: e,
-		// Headers: headers,
 	})
-	e.notifyModified()
 }
 
 func (e *Editor) RequestTab() EditorTab {
@@ -214,7 +212,6 @@ func (e *Editor) SetRequestTab(tab EditorTab) {
 		e.requestTab = tab
 		e.eventBus.Notify(RequestTabChangedEvent{
 			Editor: e,
-			Tab:    tab,
 		})
 	}
 }
@@ -228,7 +225,6 @@ func (e *Editor) SetResponseTab(tab EditorTab) {
 		e.responseTab = tab
 		e.eventBus.Notify(ResponseTabChangedEvent{
 			Editor: e,
-			Tab:    tab,
 		})
 	}
 }

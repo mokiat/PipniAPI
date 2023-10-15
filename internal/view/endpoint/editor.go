@@ -270,12 +270,12 @@ func (c *editorComponent) Render() co.Instance {
 				case endpoint.EditorTabHeaders:
 					co.WithChild("headers", co.New(ResponseHeaders, func() {
 						co.WithData(ResponseHeadersData{
-							Headers: c.mdlEditor.ResponseHeaders(),
+							EditorModel: c.mdlEditor,
 						})
 					}))
 
 				case endpoint.EditorTabStats:
-					// TODO
+					// TODO: To be added
 				}
 			}))
 		}))
@@ -352,9 +352,9 @@ func (c *editorComponent) createRequest() *APIRequest {
 func (c *editorComponent) handleResponse(response *APIResponse, err error) {
 	if err == nil {
 		c.mdlEditor.SetResponseBody(response.Body)
-		c.mdlEditor.SetResponseHeaders(response.Headers)
+		c.mdlEditor.SetHTTPResponseHeaders(response.Headers)
 	} else {
-		log.Info("API call error: %v", err)
+		log.Warn("API call error: %v", err)
 		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
 			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),

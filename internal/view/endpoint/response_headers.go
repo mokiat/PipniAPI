@@ -1,34 +1,33 @@
 package endpoint
 
 import (
-	"cmp"
-	"net/http"
-	"slices"
+	"fmt"
 
+	"github.com/mokiat/PipniAPI/internal/model/endpoint"
 	"github.com/mokiat/PipniAPI/internal/widget"
-	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
+	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var ResponseHeaders = co.Define(&responseHeadersComponent{})
+var ResponseHeaders = mvc.EventListener(co.Define(&responseHeadersComponent{}))
 
 type ResponseHeadersData struct {
-	Headers http.Header
+	EditorModel *endpoint.Editor
 }
 
 type responseHeadersComponent struct {
 	co.BaseComponent
 
-	headers http.Header
+	mdlEditor *endpoint.Editor
 }
 
 func (c *responseHeadersComponent) OnUpsert() {
 	data := co.GetData[ResponseHeadersData](c.Properties())
-	c.headers = data.Headers
+	c.mdlEditor = data.EditorModel
 }
 
 func (c *responseHeadersComponent) Render() co.Instance {
@@ -49,8 +48,8 @@ func (c *responseHeadersComponent) Render() co.Instance {
 				}),
 			})
 
-			c.eachHeader(func(name, value string) {
-				co.WithChild("row", co.New(std.Element, func() {
+			c.eachHeader(func(index int, name, value string) {
+				co.WithChild(fmt.Sprintf("row-%d", index), co.New(std.Element, func() {
 					co.WithLayoutData(layout.Data{
 						GrowHorizontally: true,
 					})
@@ -85,15 +84,17 @@ func (c *responseHeadersComponent) Render() co.Instance {
 	})
 }
 
-func (c *responseHeadersComponent) eachHeader(cb func(string, string)) {
-	headerEntries := gog.Entries(c.headers)
-	slices.SortFunc(headerEntries, func(a, b gog.KV[string, []string]) int {
-		return cmp.Compare(a.Key, b.Key)
-	})
-	for _, entry := range headerEntries {
-		name := entry.Key
-		for _, value := range entry.Value {
-			cb(name, value)
+func (c *responseHeadersComponent) OnEvent(event mvc.Event) {
+	switch event := event.(type) {
+	case endpoint.ResponseHeadersChangedEvent:
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
 		}
+	}
+}
+
+func (c *responseHeadersComponent) eachHeader(cb func(int, string, string)) {
+	for i, kv := range c.mdlEditor.ResponseHeaders() {
+		cb(i, kv.Key, kv.Value)
 	}
 }

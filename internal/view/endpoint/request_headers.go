@@ -124,9 +124,11 @@ func (c *requestHeadersComponent) Render() co.Instance {
 }
 
 func (c *requestHeadersComponent) OnEvent(event mvc.Event) {
-	switch event.(type) {
+	switch event := event.(type) {
 	case endpoint.RequestHeadersChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	}
 }
 
