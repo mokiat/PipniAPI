@@ -286,6 +286,9 @@ func (c *editBoxComponent) OnRedo(element *ui.Element) bool {
 func (c *editBoxComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
 	switch event.Action {
 	case ui.ClipboardActionCut:
+		if c.isReadOnly {
+			return false
+		}
 		if c.hasSelection() {
 			text := string(c.selectedText())
 			element.Window().RequestCopy(text)
@@ -302,11 +305,13 @@ func (c *editBoxComponent) OnClipboardEvent(element *ui.Element, event ui.Clipbo
 		return true
 
 	case ui.ClipboardActionPaste:
-		text := []rune(event.Text)
+		if c.isReadOnly {
+			return false
+		}
 		if c.hasSelection() {
-			c.history.Do(c.changeReplaceSelection(text))
+			c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
 		} else {
-			c.history.Do(c.changeAppendText(text))
+			c.history.Do(c.changeAppendText([]rune(event.Text)))
 		}
 		c.notifyChanged()
 		return true
@@ -489,11 +494,13 @@ func (c *editBoxComponent) selectAll() {
 }
 
 func (c *editBoxComponent) scrollLeft() {
-	// TODO
+	c.offsetX -= 20
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
 func (c *editBoxComponent) scrollRight() {
-	// TODO
+	c.offsetX += 20
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
 func (c *editBoxComponent) resetSelector() {
