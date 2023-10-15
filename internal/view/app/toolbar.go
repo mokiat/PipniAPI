@@ -70,8 +70,7 @@ func (c *toolbarComponent) Render() co.Instance {
 
 		co.WithChild("cut", co.New(std.ToolbarButton, func() {
 			co.WithData(std.ToolbarButtonData{
-				Icon:    co.OpenImage(c.Scope(), "images/cut.png"),
-				Enabled: opt.V(false),
+				Icon: co.OpenImage(c.Scope(), "images/cut.png"),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
 				OnClick: c.cutContent,
@@ -80,8 +79,7 @@ func (c *toolbarComponent) Render() co.Instance {
 
 		co.WithChild("copy", co.New(std.ToolbarButton, func() {
 			co.WithData(std.ToolbarButtonData{
-				Icon:    co.OpenImage(c.Scope(), "images/copy.png"),
-				Enabled: opt.V(false),
+				Icon: co.OpenImage(c.Scope(), "images/copy.png"),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
 				OnClick: c.copyContent,
@@ -90,8 +88,7 @@ func (c *toolbarComponent) Render() co.Instance {
 
 		co.WithChild("paste", co.New(std.ToolbarButton, func() {
 			co.WithData(std.ToolbarButtonData{
-				Icon:    co.OpenImage(c.Scope(), "images/paste.png"),
-				Enabled: opt.V(false),
+				Icon: co.OpenImage(c.Scope(), "images/paste.png"),
 			})
 			co.WithCallbackData(std.ToolbarButtonCallbackData{
 				OnClick: c.pasteContent,
@@ -144,23 +141,31 @@ func (c *toolbarComponent) OnEvent(event mvc.Event) {
 }
 
 func (c *toolbarComponent) importToRegistry() {
-	log.Info("Import")
+	// TODO: To be added
 }
 
 func (c *toolbarComponent) exportFromRegistry() {
-	log.Info("Export")
+	// TODO: To be added
 }
 
 func (c *toolbarComponent) cutContent() {
-	log.Info("Cut")
+	co.Window(c.Scope()).Cut()
 }
 
 func (c *toolbarComponent) copyContent() {
-	log.Info("Copy")
+	co.Window(c.Scope()).Copy()
 }
 
 func (c *toolbarComponent) pasteContent() {
-	log.Info("Paste")
+	co.Window(c.Scope()).Paste()
+}
+
+func (c *toolbarComponent) undoChange() {
+	co.Window(c.Scope()).Undo()
+}
+
+func (c *toolbarComponent) redoChange() {
+	co.Window(c.Scope()).Redo()
 }
 
 func (c *toolbarComponent) saveEditorChanges(editor workspace.Editor) {
@@ -173,12 +178,4 @@ func (c *toolbarComponent) saveEditorChanges(editor workspace.Editor) {
 			})
 		}))
 	}
-}
-
-func (c *toolbarComponent) undoChange() {
-	co.Window(c.Scope()).Undo()
-}
-
-func (c *toolbarComponent) redoChange() {
-	co.Window(c.Scope()).Redo()
 }
