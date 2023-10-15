@@ -30,17 +30,6 @@ func (c *selectorComponent) OnUpsert() {
 	c.mdlRegistry = data.RegistryModel
 }
 
-func (c *selectorComponent) listContexts() []*registry.Context {
-	resources := c.mdlRegistry.AllResources()
-	contextResources := gog.Select(resources, func(resource registry.Resource) bool {
-		_, ok := resource.(*registry.Context)
-		return ok
-	})
-	return gog.Map(contextResources, func(resource registry.Resource) *registry.Context {
-		return resource.(*registry.Context)
-	})
-}
-
 func (c *selectorComponent) Render() co.Instance {
 	contexts := c.listContexts()
 	dropdownItems := gog.Map(contexts, func(env *registry.Context) std.DropdownItem {
@@ -51,11 +40,8 @@ func (c *selectorComponent) Render() co.Instance {
 	})
 
 	var selectedKey string
-	selectedContext, ok := gog.FindFunc(contexts, func(context *registry.Context) bool {
-		return context.ID() == c.mdlRegistry.ActiveContextID()
-	})
-	if ok {
-		selectedKey = selectedContext.ID()
+	if activeContext := c.mdlRegistry.ActiveContext(); activeContext != nil {
+		selectedKey = activeContext.ID()
 	}
 
 	return co.New(std.Dropdown, func() {
@@ -80,6 +66,17 @@ func (c *selectorComponent) OnEvent(event mvc.Event) {
 func (c *selectorComponent) onDropdownItemSelected(key any) {
 	c.mdlRegistry.SetActiveContextID(key.(string))
 	c.saveChanges()
+}
+
+func (c *selectorComponent) listContexts() []*registry.Context {
+	resources := c.mdlRegistry.AllResources()
+	contextResources := gog.Select(resources, func(resource registry.Resource) bool {
+		_, ok := resource.(*registry.Context)
+		return ok
+	})
+	return gog.Map(contextResources, func(resource registry.Resource) *registry.Context {
+		return resource.(*registry.Context)
+	})
 }
 
 func (c *selectorComponent) saveChanges() {

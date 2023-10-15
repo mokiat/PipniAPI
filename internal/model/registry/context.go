@@ -41,6 +41,16 @@ func (c *Context) Properties() []gog.KV[string, string] {
 	return slices.Clone(c.properties)
 }
 
+func (c *Context) DataProperties() map[string]string {
+	result := make(map[string]string, len(c.properties))
+	for _, prop := range c.properties {
+		if prop.Key != "" {
+			result[prop.Key] = prop.Value
+		}
+	}
+	return result
+}
+
 func (c *Context) SetProperties(properties []gog.KV[string, string]) {
 	c.properties = slices.Clone(properties)
 }

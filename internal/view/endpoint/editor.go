@@ -342,9 +342,9 @@ func (c *editorComponent) makeRequest() {
 func (c *editorComponent) createRequest() *APIRequest {
 	return &APIRequest{
 		Method:  c.mdlEditor.Method(),
-		URI:     c.mdlEditor.URI(),
+		URI:     c.mdlEditor.HTTPURI(),
 		Headers: c.mdlEditor.HTTPRequestHeaders(),
-		Body:    c.mdlEditor.RequestBody(),
+		Body:    c.mdlEditor.HTTPRequestBody(),
 	}
 }
 

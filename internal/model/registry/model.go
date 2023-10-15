@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mokiat/PipniAPI/internal/storage"
+	"github.com/mokiat/gog"
 	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui/mvc"
 )
@@ -41,6 +42,23 @@ func (m *Model) Root() Container {
 
 func (m *Model) AllResources() []Resource {
 	return m.root.AllResources()
+}
+
+func (m *Model) ActiveContext() *Context {
+	contextResources := gog.Select(m.AllResources(), func(resource Resource) bool {
+		_, ok := resource.(*Context)
+		return ok
+	})
+	contexts := gog.Map(contextResources, func(resource Resource) *Context {
+		return resource.(*Context)
+	})
+	result, ok := gog.FindFunc(contexts, func(context *Context) bool {
+		return context.ID() == m.activeContextID
+	})
+	if !ok {
+		return nil
+	}
+	return result
 }
 
 func (m *Model) ActiveContextID() string {

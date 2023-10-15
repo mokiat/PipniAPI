@@ -53,16 +53,6 @@ func (e *Editor) Properties() []gog.KV[string, string] {
 	return slices.Clone(e.properties)
 }
 
-func (e *Editor) DataProperties() map[string]string {
-	result := make(map[string]string, len(e.properties))
-	for _, prop := range e.properties {
-		if prop.Key != "" {
-			result[prop.Key] = prop.Value
-		}
-	}
-	return result
-}
-
 func (e *Editor) AddProperty() {
 	e.properties = append(e.properties, gog.KV[string, string]{
 		Key:   "",

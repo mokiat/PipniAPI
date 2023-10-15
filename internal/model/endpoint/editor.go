@@ -1,13 +1,16 @@
 package endpoint
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"slices"
+	"text/template"
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/gog"
+	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
@@ -100,6 +103,10 @@ func (e *Editor) URI() string {
 	return e.uri
 }
 
+func (e *Editor) HTTPURI() string {
+	return e.evaluate(e.uri)
+}
+
 func (e *Editor) SetURI(newURI string) {
 	if newURI != e.uri {
 		e.uri = newURI
@@ -117,7 +124,7 @@ func (e *Editor) RequestHeaders() []gog.KV[string, string] {
 func (e *Editor) HTTPRequestHeaders() http.Header {
 	result := make(http.Header)
 	for _, header := range e.requestHeaders {
-		result.Add(header.Key, header.Value)
+		result.Add(e.evaluate(header.Key), e.evaluate(header.Value))
 	}
 	return result
 }
@@ -159,6 +166,10 @@ func (e *Editor) DeleteRequestHeader(index int) {
 
 func (e *Editor) RequestBody() string {
 	return e.requestBody
+}
+
+func (e *Editor) HTTPRequestBody() string {
+	return e.evaluate(e.requestBody)
 }
 
 func (e *Editor) SetRequestBody(body string) {
@@ -227,6 +238,30 @@ func (e *Editor) SetResponseTab(tab EditorTab) {
 			Editor: e,
 		})
 	}
+}
+
+func (e *Editor) evaluate(text string) string {
+	// FIXME: This evaluation is slow. It tries to find the context
+	// for each evaluation and is too tightly coupled. This should be
+	// managed differently (through an API elsewhere).
+
+	activeContext := e.reg.ActiveContext()
+	if activeContext == nil {
+		return text
+	}
+
+	tmpl, err := template.New("tmp").Parse(text)
+	if err != nil {
+		log.Warn("Cannot evaluate text expression: %v", err)
+		return text
+	}
+
+	var output bytes.Buffer
+	if err := tmpl.Execute(&output, activeContext.DataProperties()); err != nil {
+		log.Warn("Cannot evaluate text expression: %v", err)
+		return text
+	}
+	return output.String()
 }
 
 func (e *Editor) notifyModified() {
