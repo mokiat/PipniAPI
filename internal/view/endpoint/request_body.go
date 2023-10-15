@@ -1,44 +1,50 @@
 package endpoint
 
 import (
+	"github.com/mokiat/PipniAPI/internal/model/endpoint"
 	"github.com/mokiat/PipniAPI/internal/widget"
 	co "github.com/mokiat/lacking/ui/component"
+	"github.com/mokiat/lacking/ui/mvc"
 )
 
-var RequestBody = co.Define(&requestBodyComponent{})
+var RequestBody = mvc.EventListener(co.Define(&requestBodyComponent{}))
 
 type RequestBodyData struct {
-	Text string
-}
-
-type RequestBodyCallbackData struct {
-	OnChange func(text string)
+	EditorModel *endpoint.Editor
 }
 
 type requestBodyComponent struct {
 	co.BaseComponent
 
-	text string
-
-	onChange func(string)
+	mdlEditor *endpoint.Editor
 }
 
 func (c *requestBodyComponent) OnUpsert() {
 	data := co.GetData[RequestBodyData](c.Properties())
-	c.text = data.Text
-
-	callbackData := co.GetCallbackData[RequestBodyCallbackData](c.Properties())
-	c.onChange = callbackData.OnChange
+	c.mdlEditor = data.EditorModel
 }
 
 func (c *requestBodyComponent) Render() co.Instance {
 	return co.New(widget.CodeArea, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(widget.CodeAreaData{
-			Code: c.text,
+			Code: c.mdlEditor.RequestBody(),
 		})
 		co.WithCallbackData(widget.CodeAreaCallbackData{
-			OnChange: c.onChange,
+			OnChange: c.changeRequestBody,
 		})
 	})
+}
+
+func (c *requestBodyComponent) OnEvent(event mvc.Event) {
+	switch event := event.(type) {
+	case endpoint.ResponseBodyChangedEvent:
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
+	}
+}
+
+func (c *requestBodyComponent) changeRequestBody(body string) {
+	c.mdlEditor.SetRequestBody(body)
 }

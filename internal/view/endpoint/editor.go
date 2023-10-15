@@ -180,12 +180,7 @@ func (c *editorComponent) Render() co.Instance {
 				case endpoint.EditorTabBody:
 					co.WithChild("body", co.New(RequestBody, func() {
 						co.WithData(RequestBodyData{
-							Text: c.mdlEditor.RequestBody(),
-						})
-						co.WithCallbackData(RequestBodyCallbackData{
-							OnChange: func(text string) {
-								c.mdlEditor.SetRequestBody(text)
-							},
+							EditorModel: c.mdlEditor,
 						})
 					}))
 
@@ -263,7 +258,7 @@ func (c *editorComponent) Render() co.Instance {
 				case endpoint.EditorTabBody:
 					co.WithChild("body", co.New(ResponseBody, func() {
 						co.WithData(ResponseBodyData{
-							Text: c.mdlEditor.ResponseBody(),
+							EditorModel: c.mdlEditor,
 						})
 					}))
 
@@ -283,19 +278,23 @@ func (c *editorComponent) Render() co.Instance {
 }
 
 func (c *editorComponent) OnEvent(event mvc.Event) {
-	switch event.(type) {
+	switch event := event.(type) {
 	case endpoint.MethodChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	case endpoint.URIChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	case endpoint.RequestTabChangedEvent:
-		c.Invalidate()
-	case endpoint.RequestBodyChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	case endpoint.ResponseTabChangedEvent:
-		c.Invalidate()
-	case endpoint.ResponseBodyChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	}
 }
 
