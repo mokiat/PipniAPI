@@ -1,16 +1,26 @@
 package widget
 
 import (
+	"math"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/gomath/sprec"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
+	"github.com/mokiat/lacking/ui/state"
 	"github.com/mokiat/lacking/ui/std"
 	"golang.org/x/exp/slices"
+)
+
+const (
+	codeAreaHistoryCapacity = 100
+	codeAreaLinesWidth      = 100
+	codeAreaLinesPadding    = 10
 )
 
 var CodeArea = co.Define(&codeAreaComponent{})
@@ -24,15 +34,17 @@ type CodeAreaCallbackData struct {
 	OnChange func(string)
 }
 
-var defaultCodeAreaCallbackData = CodeAreaCallbackData{
-	OnChange: func(string) {},
-}
-
+var _ ui.ElementResizeHandler = (*codeAreaComponent)(nil)
 var _ ui.ElementRenderHandler = (*codeAreaComponent)(nil)
 var _ ui.ElementKeyboardHandler = (*codeAreaComponent)(nil)
+var _ ui.ElementMouseHandler = (*codeAreaComponent)(nil)
+var _ ui.ElementHistoryHandler = (*codeAreaComponent)(nil)
+var _ ui.ElementClipboardHandler = (*codeAreaComponent)(nil)
 
 type codeAreaComponent struct {
 	co.BaseComponent
+
+	history *state.History
 
 	font     *ui.Font
 	fontSize float32
@@ -47,30 +59,46 @@ type codeAreaComponent struct {
 	isReadOnly bool
 	lines      [][]rune
 	onChange   func(string)
+
+	textWidth  int
+	textHeight int
+
+	offsetX    int
+	offsetY    int
+	maxOffsetX int
+	maxOffsetY int
+
+	isDragging bool
 }
 
 func (c *codeAreaComponent) OnCreate() {
+	c.history = state.NewHistory(editBoxHistoryCapacity)
+
 	c.font = co.OpenFont(c.Scope(), "fonts/roboto-mono-regular.ttf")
-	c.fontSize = 20.0
+	c.fontSize = 18.0 // TODO: Was 20. Is it better with 18? EditBox is 18.
 
 	c.cursorRow = 0
 	c.cursorColumn = 0
+	c.cursorVirtualColumn = 0
 }
 
 func (c *codeAreaComponent) OnUpsert() {
 	data := co.GetData[CodeAreaData](c.Properties())
 	c.isReadOnly = data.ReadOnly
+	if data.Code != c.constructText() {
+		c.history.Clear()
+	}
 	c.lines = gog.Map(strings.Split(data.Code, "\n"), func(line string) []rune {
 		return []rune(line)
 	})
+	c.refreshTextSize()
 
-	callbackData := co.GetOptionalCallbackData[CodeAreaCallbackData](c.Properties(), defaultCodeAreaCallbackData)
+	callbackData := co.GetOptionalCallbackData[CodeAreaCallbackData](c.Properties(), CodeAreaCallbackData{})
 	c.onChange = callbackData.OnChange
 
-	numRows := len(c.lines)
-	c.cursorRow = min(c.cursorRow, numRows-1)
+	c.cursorRow = min(c.cursorRow, len(c.lines)-1)
 	c.cursorColumn = min(c.cursorColumn, len(c.lines[c.cursorRow]))
-	c.selectorRow = min(c.selectorRow, numRows-1)
+	c.selectorRow = min(c.selectorRow, len(c.lines)-1)
 	c.selectorColumn = min(c.selectorColumn, len(c.lines[c.selectorRow]))
 }
 
@@ -87,14 +115,41 @@ func (c *codeAreaComponent) Render() co.Instance {
 			Essence:   c,
 			Focusable: opt.V(true),
 			IdealSize: opt.V(ui.Size{
-				Width:  int(contentSize.X + 100),
+				Width:  int(codeAreaLinesWidth + codeAreaLinesPadding + contentSize.X),
 				Height: int(contentSize.Y),
 			}),
 		})
 	})
 }
 
+func (c *codeAreaComponent) refreshTextSize() {
+	var textSize sprec.Vec2
+	for _, line := range c.lines {
+		lineSize := c.font.TextSize(string(line), c.fontSize)
+		textSize.X = max(textSize.X, lineSize.X)
+		textSize.Y += lineSize.Y
+	}
+	c.textWidth = int(math.Ceil(float64(textSize.X)))
+	c.textHeight = int(math.Ceil(float64(textSize.Y)))
+}
+
+func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
+	bounds := element.ContentBounds()
+	availableTextWidth := bounds.Width - 110
+	availableTextHeight := bounds.Height
+	c.maxOffsetX = max(c.textWidth-availableTextWidth, 0)
+	c.maxOffsetY = max(c.textHeight-availableTextHeight, 0)
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
+}
+
+func (c *codeAreaComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
+	c.refreshScrollBounds(element)
+}
+
 func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
+	c.refreshScrollBounds(element)
+
 	// TODO: Take scrolling into consideration.
 	// Use binary search to figure out the first and last lines that are visible.
 	// This should optimize rendering of large texts.
@@ -112,32 +167,14 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 		Color: std.SurfaceColor,
 	})
 
-	// Lines indicator
-	canvas.Reset()
-	canvas.Rectangle(
-		bounds.Position,
-		sprec.NewVec2(90, bounds.Size.Y),
-	)
-	canvas.Fill(ui.Fill{
-		Color: std.PrimaryLightColor,
-	})
-
 	selection := c.selection()
 
 	// Draw text content
-	linePosition := bounds.Position
-	for i, line := range c.lines {
-		lineHeight := c.font.TextSize("|", c.fontSize)
-		textPosition := sprec.Vec2Sum(linePosition, sprec.NewVec2(100.0, 0.0))
+	lineHeight := c.font.TextSize("|", c.fontSize)
+	linePosition := sprec.Vec2Diff(bounds.Position, sprec.NewVec2(0.0, float32(c.offsetY)))
 
-		// Draw line number
-		numberPosition := sprec.Vec2Sum(linePosition, sprec.NewVec2(10.0, 0.0))
-		canvas.Reset()
-		canvas.FillText(strconv.Itoa(i+1), numberPosition, ui.Typography{
-			Font:  c.font,
-			Size:  c.fontSize,
-			Color: std.OnSurfaceColor,
-		})
+	for i, line := range c.lines {
+		textPosition := sprec.Vec2Sum(linePosition, sprec.NewVec2(100.0-float32(c.offsetX), 0.0))
 
 		// Draw Selection
 		if selection.ContainsRow(i) {
@@ -180,6 +217,29 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 		linePosition.Y += lineHeight.Y
 	}
 
+	// Lines indicator
+	canvas.Reset()
+	canvas.Rectangle(
+		bounds.Position,
+		sprec.NewVec2(90, bounds.Size.Y),
+	)
+	canvas.Fill(ui.Fill{
+		Color: std.PrimaryLightColor,
+	})
+
+	linePosition = sprec.Vec2Diff(bounds.Position, sprec.NewVec2(0.0, float32(c.offsetY)))
+	for i := range c.lines {
+		// Draw line number
+		numberPosition := sprec.Vec2Sum(linePosition, sprec.NewVec2(10.0, 0.0))
+		canvas.Reset()
+		canvas.FillText(strconv.Itoa(i+1), numberPosition, ui.Typography{
+			Font:  c.font,
+			Size:  c.fontSize,
+			Color: std.OnSurfaceColor,
+		})
+		linePosition.Y += lineHeight.Y
+	}
+
 	// Highlight
 	if isFocused {
 		canvas.Reset()
@@ -190,13 +250,127 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	}
 }
 
+func (c *codeAreaComponent) OnUndo(element *ui.Element) bool {
+	canUndo := c.history.CanUndo()
+	if canUndo {
+		c.history.Undo()
+		c.notifyChanged()
+	}
+	return canUndo
+}
+
+func (c *codeAreaComponent) OnRedo(element *ui.Element) bool {
+	canRedo := c.history.CanRedo()
+	if canRedo {
+		c.history.Redo()
+		c.notifyChanged()
+	}
+	return canRedo
+}
+
+func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
+	switch event.Action {
+	// case ui.ClipboardActionCut:
+	// 	if c.isReadOnly {
+	// 		return false
+	// 	}
+	// 	if c.hasSelection() {
+	// 		text := string(c.selectedText())
+	// 		element.Window().RequestCopy(text)
+	// 		c.history.Do(c.changeDeleteSelection())
+	// 		c.notifyChanged()
+	// 	}
+	// 	return true
+
+	// case ui.ClipboardActionCopy:
+	// 	if c.hasSelection() {
+	// 		text := string(c.selectedText())
+	// 		element.Window().RequestCopy(text)
+	// 	}
+	// 	return true
+
+	// case ui.ClipboardActionPaste:
+	// 	if c.isReadOnly {
+	// 		return false
+	// 	}
+	// 	if c.hasSelection() {
+	// 		c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
+	// 	} else {
+	// 		c.history.Do(c.changeAppendText([]rune(event.Text)))
+	// 	}
+	// 	c.notifyChanged()
+	// 	return true
+
+	default:
+		return false
+	}
+}
+
 func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	switch event.Action {
 	case ui.KeyboardActionDown, ui.KeyboardActionRepeat:
-		return c.onKeyboardPressEvent(element, event)
+		consumed := c.onKeyboardPressEvent(element, event)
+		if consumed {
+			element.Invalidate()
+		}
+		return consumed
 
 	case ui.KeyboardActionType:
-		return c.onKeyboardTypeEvent(element, event)
+		consumed := c.onKeyboardTypeEvent(element, event)
+		if consumed {
+			element.Invalidate()
+		}
+		return consumed
+
+	default:
+		return false
+	}
+}
+
+func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
+	switch event.Action {
+	case ui.MouseActionScroll:
+		if event.Modifiers.Contains(ui.KeyModifierShift) && (event.ScrollX == 0) {
+			c.offsetX -= event.ScrollY
+			c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+		} else {
+			c.offsetX -= event.ScrollX
+			c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+			c.offsetY -= event.ScrollY
+			c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
+		}
+		element.Invalidate()
+		return true
+
+	// case ui.MouseActionDown:
+	// 	if event.Button != ui.MouseButtonLeft {
+	// 		return false
+	// 	}
+	// 	c.isDragging = true
+	// 	c.cursorColumn = c.findCursorColumn(element, event.X)
+	// 	if !event.Modifiers.Contains(ui.KeyModifierShift) {
+	// 		c.resetSelector()
+	// 	}
+	// 	element.Invalidate()
+	// 	return true
+
+	// case ui.MouseActionMove: // TODO: Use dragging event
+	// 	if c.isDragging {
+	// 		c.cursorColumn = c.findCursorColumn(element, event.X)
+	// 		element.Invalidate()
+	// 	}
+	// 	return true
+
+	// case ui.MouseActionUp:
+	// 	if event.Button != ui.MouseButtonLeft {
+	// 		return false
+	// 	}
+	// 	if c.isDragging {
+	// 		c.isDragging = false
+	// 		c.cursorColumn = c.findCursorColumn(element, event.X)
+	// 		element.Invalidate()
+	// 	}
+	// return true
 
 	default:
 		return false
@@ -204,6 +378,32 @@ func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.Keyboa
 }
 
 func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+	os := element.Window().Platform().OS()
+	if shortcuts.IsCut(os, event) {
+		element.Window().Cut()
+		return true
+	}
+	if shortcuts.IsCopy(os, event) {
+		element.Window().Copy()
+		return true
+	}
+	if shortcuts.IsPaste(os, event) {
+		element.Window().Paste()
+		return true
+	}
+	if shortcuts.IsUndo(os, event) {
+		element.Window().Undo()
+		return true
+	}
+	if shortcuts.IsRedo(os, event) {
+		element.Window().Redo()
+		return true
+	}
+	if shortcuts.IsSelectAll(os, event) {
+		c.selectAll()
+		return true
+	}
+
 	switch event.Code {
 
 	case ui.KeyCodeEscape:
@@ -219,7 +419,6 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 				c.resetSelector()
 			}
 		}
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeArrowDown:
@@ -231,7 +430,6 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 				c.resetSelector()
 			}
 		}
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeArrowLeft:
@@ -247,7 +445,6 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 				c.resetSelector()
 			}
 		}
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeArrowRight:
@@ -263,7 +460,6 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 				c.resetSelector()
 			}
 		}
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeBackspace:
@@ -276,7 +472,6 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			c.resetSelector()
 		}
 		c.onChange(c.constructText())
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeDelete:
@@ -289,7 +484,6 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			c.resetSelector()
 		}
 		c.onChange(c.constructText())
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeEnter:
@@ -301,7 +495,6 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			c.resetSelector()
 		}
 		c.onChange(c.constructText())
-		element.Invalidate()
 		return true
 
 	case ui.KeyCodeTab:
@@ -313,7 +506,6 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			c.resetSelector()
 		}
 		c.onChange(c.constructText())
-		element.Invalidate()
 		return true
 
 	default:
@@ -331,20 +523,37 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 	return true
 }
 
+func (c *codeAreaComponent) hasSelection() bool {
+	return c.cursorColumn != c.selectorColumn ||
+		c.cursorRow != c.selectorRow
+}
+
+func (c *codeAreaComponent) selectAll() {
+	c.selectorRow = 0
+	c.selectorColumn = 0
+	c.cursorRow = len(c.lines) - 1
+	c.cursorColumn = len(c.lines[c.cursorRow])
+	c.cursorVirtualColumn = c.cursorColumn
+}
+
 func (c *codeAreaComponent) scrollUp() {
-	// TODO
+	c.offsetY -= 20
+	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
 }
 
 func (c *codeAreaComponent) scrollDown() {
-	// TODO
+	c.offsetY += 20
+	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
 }
 
 func (c *codeAreaComponent) scrollLeft() {
-	// TODO
+	c.offsetX -= 20
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
 func (c *codeAreaComponent) scrollRight() {
-	// TODO
+	c.offsetX += 20
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
 func (c *codeAreaComponent) trackVirtualColumn() {
@@ -501,9 +710,12 @@ func (c *codeAreaComponent) selection() selectionSpan {
 	}
 }
 
-// TODO: Add built-in scrolling as well. The external one will not do due to auto-panning and the like.
-
-// TODO: Mouse handler as well, so that selection is possible
+func (c *codeAreaComponent) notifyChanged() {
+	if c.onChange != nil {
+		c.refreshTextSize()
+		c.onChange(string(c.constructText()))
+	}
+}
 
 type selectionSpan struct {
 	FromRow    int
@@ -532,4 +744,36 @@ func (s selectionSpan) ColumnSpan(row, lineLength int) (int, int) {
 	default:
 		return 0, lineLength
 	}
+}
+
+type codeAreaChange struct {
+	when    time.Time
+	forward []func()
+	reverse []func()
+}
+
+func (c *codeAreaChange) Apply() {
+	for _, action := range c.forward {
+		action()
+	}
+}
+
+func (c *codeAreaChange) Revert() {
+	for _, action := range c.reverse {
+		action()
+	}
+}
+
+func (c *codeAreaChange) Extend(other state.Change) bool {
+	otherChange, ok := other.(*codeAreaChange)
+	if !ok {
+		return false
+	}
+	if otherChange.when.Sub(c.when) > 500*time.Millisecond {
+		return false
+	}
+	c.forward = append(c.forward, otherChange.forward...)
+	c.reverse = append(otherChange.reverse, c.reverse...)
+	c.when = otherChange.when
+	return true
 }

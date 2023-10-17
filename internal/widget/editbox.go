@@ -260,9 +260,11 @@ func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 			c.cursorColumn = c.findCursorColumn(element, event.X)
 			element.Invalidate()
 		}
-	}
+		return true
 
-	return false
+	default:
+		return false
+	}
 }
 
 func (c *editBoxComponent) OnUndo(element *ui.Element) bool {
@@ -734,8 +736,5 @@ func (c *editboxChange) Extend(other state.Change) bool {
 }
 
 func abs(a int) int {
-	if a < 0 {
-		return -a
-	}
-	return a
+	return max(a, -a)
 }
