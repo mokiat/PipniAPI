@@ -2,6 +2,9 @@ package view
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
@@ -29,28 +32,27 @@ type rootComponent struct {
 }
 
 func (c *rootComponent) OnCreate() {
-	var loadErr error
-
 	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
+	c.mdlWorkspace = workspace.NewModel(c.eventBus)
 
-	c.mdlRegistry = registry.NewModel(c.eventBus, "registry.json")
+	configDir, err := c.configDir()
+	if err != nil {
+		log.Error("Error preparing config dir: %v", err)
+		configDir = ""
+	}
+
+	c.mdlRegistry = registry.NewModel(c.eventBus, filepath.Join(configDir, "registry.json"))
 	if err := c.mdlRegistry.Load(); err != nil {
 		c.mdlRegistry.Clear() // start with blank
 		if !errors.Is(err, registry.ErrRegistryNotFound) {
-			loadErr = errors.Join(loadErr, err)
+			log.Error("Error loading model: %v", err)
+			co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+				co.WithData(widget.NotificationModalData{
+					Icon: co.OpenImage(c.Scope(), "images/error.png"),
+					Text: "The program encountered an error.\n\nSome of the state could not be restored.",
+				})
+			}))
 		}
-	}
-
-	c.mdlWorkspace = workspace.NewModel(c.eventBus)
-
-	if loadErr != nil {
-		log.Error("Error loading models: %v", loadErr)
-		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
-			co.WithData(widget.NotificationModalData{
-				Icon: co.OpenImage(c.Scope(), "images/error.png"),
-				Text: "The program encountered an error.\n\nSome of the state could not be restored.",
-			})
-		}))
 	}
 }
 
@@ -134,4 +136,18 @@ func (c *rootComponent) selectResourceForEditor(editor workspace.Editor) {
 	} else {
 		c.mdlRegistry.SetSelectedID("")
 	}
+}
+
+func (c *rootComponent) configDir() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("error determining config dir: %w", err)
+	}
+
+	dir = filepath.Join(dir, "PipniAPI")
+	if err := os.MkdirAll(dir, 0775); err != nil {
+		return "", fmt.Errorf("error creating config folder: %w", err)
+	}
+
+	return dir, nil
 }

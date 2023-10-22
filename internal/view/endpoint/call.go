@@ -28,21 +28,23 @@ func constructCall(req *APIRequest) call {
 			_ = response.Body.Close()
 		}()
 
-		var responseJSON any
-		if err := json.NewDecoder(response.Body).Decode(&responseJSON); err != nil {
-			return nil, fmt.Errorf("json error: %w", err)
+		responseData, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error reading response: %w", err)
 		}
 
-		var responseBody bytes.Buffer
-		encoder := json.NewEncoder(&responseBody)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(responseJSON); err != nil {
-			return nil, fmt.Errorf("json error: %w", err)
+		if len(responseData) > 0 {
+			// TODO: Base this on Content Type header.
+			responseData = formatJSON(responseData)
 		}
+
+		// TODO: This should not be added as a header. Instead, it should have
+		// dedicated visualization.
+		response.Header.Add("Status", response.Status)
 
 		return &APIResponse{
 			StatusCode: response.StatusCode,
-			Body:       responseBody.String(),
+			Body:       string(responseData),
 			Headers:    response.Header,
 		}, nil
 	}
@@ -66,4 +68,20 @@ type APIResponse struct {
 	StatusCode int
 	Body       string
 	Headers    http.Header
+}
+
+func formatJSON(data []byte) []byte {
+	var responseJSON any
+	if err := json.NewDecoder(bytes.NewReader(data)).Decode(&responseJSON); err != nil {
+		return data
+	}
+
+	var formattedData bytes.Buffer
+	encoder := json.NewEncoder(&formattedData)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(responseJSON); err != nil {
+		return data
+	}
+
+	return formattedData.Bytes()
 }

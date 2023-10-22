@@ -3,6 +3,7 @@ package registry
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/google/uuid"
@@ -236,12 +237,72 @@ func (m *Model) Save() error {
 }
 
 func (m *Model) Clear() {
-	// IDEA: Consider defaulting to a working example.
 	m.root = &standardContainer{
 		id:   RootContainerID,
 		name: "Root",
 	}
+
+	contextID := uuid.NewString()
+	m.root.AppendResource(&Context{
+		id:        contextID,
+		name:      "REQRES",
+		container: m.root,
+		properties: []gog.KV[string, string]{
+			{
+				Key:   "host",
+				Value: "reqres.in",
+			},
+		},
+	})
+
+	m.root.AppendResource(&Endpoint{
+		id:     uuid.NewString(),
+		name:   "Create User",
+		method: http.MethodPost,
+		uri:    "https://{{.host}}/api/users",
+		headers: []gog.KV[string, string]{
+			{
+				Key:   "Content-Type",
+				Value: "application/json",
+			},
+		},
+		container: m.root,
+		body:      "{\"name\":\"morpheus\",\"job\":\"leader\"}",
+	})
+
+	m.root.AppendResource(&Endpoint{
+		id:        uuid.NewString(),
+		name:      "Get User",
+		method:    http.MethodGet,
+		uri:       "https://{{.host}}/api/users/2",
+		headers:   []gog.KV[string, string]{},
+		container: m.root,
+		body:      "",
+	})
+
+	m.root.AppendResource(&Endpoint{
+		id:        uuid.NewString(),
+		name:      "List Users",
+		method:    http.MethodGet,
+		uri:       "https://{{.host}}/api/users",
+		headers:   []gog.KV[string, string]{},
+		container: m.root,
+		body:      "",
+	})
+
+	m.root.AppendResource(&Endpoint{
+		id:        uuid.NewString(),
+		name:      "Delete User",
+		method:    http.MethodDelete,
+		uri:       "https://{{.host}}/api/users/2",
+		headers:   []gog.KV[string, string]{},
+		container: m.root,
+		body:      "",
+	})
+
+	m.activeContextID = contextID
 	m.selectedID = ""
+
 	m.eventBus.Notify(RegistryStructureChangedEvent{
 		Registry: m,
 	})

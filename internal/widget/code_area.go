@@ -268,42 +268,61 @@ func (c *codeAreaComponent) OnRedo(element *ui.Element) bool {
 	return canRedo
 }
 
+func runesToString(input []rune) string {
+	return string(input)
+}
+
 func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
 	switch event.Action {
-	// case ui.ClipboardActionCut:
-	// 	if c.isReadOnly {
-	// 		return false
-	// 	}
-	// 	if c.hasSelection() {
-	// 		text := string(c.selectedText())
-	// 		element.Window().RequestCopy(text)
-	// 		c.history.Do(c.changeDeleteSelection())
-	// 		c.notifyChanged()
-	// 	}
-	// 	return true
+	case ui.ClipboardActionCut:
+		if c.isReadOnly {
+			return false
+		}
+		if c.hasSelection() {
+			// 		text := string(c.selectedText())
+			// 		element.Window().RequestCopy(text)
+			// 		c.history.Do(c.changeDeleteSelection())
+			c.notifyChanged()
+		}
+		return true
 
-	// case ui.ClipboardActionCopy:
-	// 	if c.hasSelection() {
-	// 		text := string(c.selectedText())
-	// 		element.Window().RequestCopy(text)
-	// 	}
-	// 	return true
+	case ui.ClipboardActionCopy:
+		if c.hasSelection() {
+			text := strings.Join(gog.Map(c.selectedText(), runesToString), ",")
+			element.Window().RequestCopy(text)
+		}
+		return true
 
-	// case ui.ClipboardActionPaste:
-	// 	if c.isReadOnly {
-	// 		return false
-	// 	}
-	// 	if c.hasSelection() {
-	// 		c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
-	// 	} else {
-	// 		c.history.Do(c.changeAppendText([]rune(event.Text)))
-	// 	}
-	// 	c.notifyChanged()
-	// 	return true
+	case ui.ClipboardActionPaste:
+		if c.isReadOnly {
+			return false
+		}
+		// 	if c.hasSelection() {
+		// 		c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
+		// 	} else {
+		// 		c.history.Do(c.changeAppendText([]rune(event.Text)))
+		// 	}
+		c.notifyChanged()
+		return true
 
 	default:
 		return false
 	}
+}
+
+func (c *codeAreaComponent) selectedText() [][]rune {
+	selection := c.selection()
+	if !selection.Valid() {
+		return [][]rune{}
+	}
+
+	var result [][]rune
+	for row := selection.FromRow; row <= selection.ToRow; row++ {
+		line := c.lines[row]
+		fromColumn, toColumn := selection.ColumnSpan(row, len(line))
+		result = append(result, slices.Clone(line[fromColumn:toColumn]))
+	}
+	return result
 }
 
 func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
@@ -342,39 +361,71 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 		element.Invalidate()
 		return true
 
-	// case ui.MouseActionDown:
-	// 	if event.Button != ui.MouseButtonLeft {
-	// 		return false
-	// 	}
-	// 	c.isDragging = true
-	// 	c.cursorColumn = c.findCursorColumn(element, event.X)
-	// 	if !event.Modifiers.Contains(ui.KeyModifierShift) {
-	// 		c.resetSelector()
-	// 	}
-	// 	element.Invalidate()
-	// 	return true
+	case ui.MouseActionDown:
+		if event.Button != ui.MouseButtonLeft {
+			return false
+		}
+		c.isDragging = true
+		c.cursorRow = c.findCursorRow(element, event.Y)
+		c.cursorColumn = c.findCursorColumn(element, event.X)
+		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			c.resetSelector()
+		}
+		element.Invalidate()
+		return true
 
-	// case ui.MouseActionMove: // TODO: Use dragging event
-	// 	if c.isDragging {
-	// 		c.cursorColumn = c.findCursorColumn(element, event.X)
-	// 		element.Invalidate()
-	// 	}
-	// 	return true
+	case ui.MouseActionMove: // TODO: Use dragging event
+		if c.isDragging {
+			c.cursorRow = c.findCursorRow(element, event.Y)
+			c.cursorColumn = c.findCursorColumn(element, event.X)
+			element.Invalidate()
+		}
+		return true
 
-	// case ui.MouseActionUp:
-	// 	if event.Button != ui.MouseButtonLeft {
-	// 		return false
-	// 	}
-	// 	if c.isDragging {
-	// 		c.isDragging = false
-	// 		c.cursorColumn = c.findCursorColumn(element, event.X)
-	// 		element.Invalidate()
-	// 	}
-	// return true
+	case ui.MouseActionUp:
+		if event.Button != ui.MouseButtonLeft {
+			return false
+		}
+		if c.isDragging {
+			c.isDragging = false
+			c.cursorRow = c.findCursorRow(element, event.Y)
+			c.cursorColumn = c.findCursorColumn(element, event.X)
+			element.Invalidate()
+		}
+		return true
 
 	default:
 		return false
 	}
+}
+
+func (c *codeAreaComponent) findCursorRow(element *ui.Element, y int) int {
+	y -= element.Padding().Top - int(c.offsetY)
+
+	lineHeight := c.font.LineHeight(c.fontSize)
+	row := y / int(lineHeight)
+	return min(max(0, row), len(c.lines)-1)
+}
+
+func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
+	x -= element.Padding().Left + 105 - int(c.offsetX)
+
+	bestColumn := 0
+	bestDistance := abs(x)
+
+	column := 1
+	offset := float32(0.0)
+	iterator := c.font.TextIterator(string(c.lines[c.cursorRow]), c.fontSize)
+	for iterator.Next() {
+		character := iterator.Character()
+		offset += character.Kern + character.Width
+		if distance := abs(x - int(offset)); distance < bestDistance {
+			bestColumn = column
+			bestDistance = distance
+		}
+		column++
+	}
+	return bestColumn
 }
 
 func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
