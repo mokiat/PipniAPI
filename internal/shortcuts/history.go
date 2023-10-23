@@ -5,6 +5,40 @@ import (
 	"github.com/mokiat/lacking/ui"
 )
 
+func IsClose(os app.OS, event ui.KeyboardEvent) bool {
+	switch os {
+	case app.OSDarwin:
+		return IsKeyCombo(event,
+			ui.KeyModifiers(ui.KeyModifierSuper), ui.KeyCodeW,
+		)
+	case app.OSWindows:
+		fallthrough
+	case app.OSLinux:
+		fallthrough
+	default:
+		return IsKeyCombo(event,
+			ui.KeyModifiers(ui.KeyModifierControl), ui.KeyCodeW,
+		)
+	}
+}
+
+func IsSave(os app.OS, event ui.KeyboardEvent) bool {
+	switch os {
+	case app.OSDarwin:
+		return IsKeyCombo(event,
+			ui.KeyModifiers(ui.KeyModifierSuper), ui.KeyCodeS,
+		)
+	case app.OSWindows:
+		fallthrough
+	case app.OSLinux:
+		fallthrough
+	default:
+		return IsKeyCombo(event,
+			ui.KeyModifiers(ui.KeyModifierControl), ui.KeyCodeS,
+		)
+	}
+}
+
 func IsUndo(os app.OS, event ui.KeyboardEvent) bool {
 	switch os {
 	case app.OSDarwin:

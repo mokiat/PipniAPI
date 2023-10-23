@@ -8,11 +8,13 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	contextview "github.com/mokiat/PipniAPI/internal/view/context"
 	endpointview "github.com/mokiat/PipniAPI/internal/view/endpoint"
 	"github.com/mokiat/PipniAPI/internal/view/welcome"
 	workflowview "github.com/mokiat/PipniAPI/internal/view/workflow"
 	"github.com/mokiat/PipniAPI/internal/widget"
+	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -25,6 +27,8 @@ var Workspace = mvc.EventListener(co.Define(&workspaceComponent{}))
 type WorkspaceData struct {
 	WorkspaceModel *workspace.Model
 }
+
+var _ ui.ElementKeyboardHandler = (*workspaceComponent)(nil)
 
 type workspaceComponent struct {
 	co.BaseComponent
@@ -40,10 +44,13 @@ func (c *workspaceComponent) OnUpsert() {
 func (c *workspaceComponent) Render() co.Instance {
 	selectedEditor := c.mdlWorkspace.SelectedEditor()
 
-	return co.New(std.Container, func() {
+	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
-		co.WithData(std.ContainerData{
-			Layout: layout.Frame(),
+		co.WithData(std.ElementData{
+			Essence:   c,
+			Focusable: opt.V(true),
+			Focused:   opt.V(true),
+			Layout:    layout.Frame(),
 		})
 
 		co.WithChild("tabbar", co.New(std.Tabbar, func() {
@@ -134,6 +141,19 @@ func (c *workspaceComponent) OnEvent(event mvc.Event) {
 	case registry.RegistryResourceRemovedEvent:
 		c.closeEditorForResource(event.Resource)
 	}
+}
+
+func (c *workspaceComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+	os := element.Window().Platform().OS()
+	if shortcuts.IsClose(os, event) {
+		if event.Action == ui.KeyboardActionDown {
+			if selectedEditor := c.mdlWorkspace.SelectedEditor(); selectedEditor != nil {
+				c.closeEditor(selectedEditor, false)
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func (c *workspaceComponent) editorImage(editor workspace.Editor) *ui.Image {

@@ -325,6 +325,12 @@ func (c *editBoxComponent) OnClipboardEvent(element *ui.Element, event ui.Clipbo
 
 func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	os := element.Window().Platform().OS()
+	if shortcuts.IsClose(os, event) {
+		return false // propagate up
+	}
+	if shortcuts.IsSave(os, event) {
+		return false // propagate up
+	}
 	if shortcuts.IsCut(os, event) {
 		element.Window().Cut()
 		return true
