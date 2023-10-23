@@ -15,6 +15,7 @@ import (
 	workflowview "github.com/mokiat/PipniAPI/internal/view/workflow"
 	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -29,6 +30,7 @@ type WorkspaceData struct {
 }
 
 var _ ui.ElementKeyboardHandler = (*workspaceComponent)(nil)
+var _ ui.ElementStateHandler = (*workspaceComponent)(nil)
 
 type workspaceComponent struct {
 	co.BaseComponent
@@ -153,6 +155,21 @@ func (c *workspaceComponent) OnKeyboardEvent(element *ui.Element, event ui.Keybo
 		}
 		return true
 	}
+	if shortcuts.IsSave(os, event) {
+		if event.Action == ui.KeyboardActionDown {
+			if selectedEditor := c.mdlWorkspace.SelectedEditor(); selectedEditor != nil {
+				c.saveEditor(selectedEditor)
+			}
+		}
+	}
+	return false
+}
+
+func (c *workspaceComponent) OnSave(element *ui.Element) bool {
+	if selectedEditor := c.mdlWorkspace.SelectedEditor(); selectedEditor != nil {
+		c.saveEditor(selectedEditor)
+		return true
+	}
 	return false
 }
 
@@ -171,6 +188,18 @@ func (c *workspaceComponent) editorImage(editor workspace.Editor) *ui.Image {
 
 func (c *workspaceComponent) selectEditor(editor workspace.Editor) {
 	c.mdlWorkspace.SetSelectedID(editor.ID())
+}
+
+func (c *workspaceComponent) saveEditor(editor workspace.Editor) {
+	if err := editor.Save(); err != nil {
+		log.Error("Error saving editor changes: %v", err)
+		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+			co.WithData(widget.NotificationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/error.png"),
+				Text: "The program encountered an error.\n\nChanges could not be saved.",
+			})
+		}))
+	}
 }
 
 func (c *workspaceComponent) closeEditor(editor workspace.Editor, force bool) {

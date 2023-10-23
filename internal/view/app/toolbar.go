@@ -2,9 +2,7 @@ package app
 
 import (
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
-	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
-	"github.com/mokiat/lacking/log"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
@@ -169,13 +167,5 @@ func (c *toolbarComponent) redoChange() {
 }
 
 func (c *toolbarComponent) saveEditorChanges(editor workspace.Editor) {
-	if err := editor.Save(); err != nil {
-		log.Error("Error saving editor changes: %v", err)
-		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
-			co.WithData(widget.NotificationModalData{
-				Icon: co.OpenImage(c.Scope(), "images/error.png"),
-				Text: "The program encountered an error.\n\nChanges could not be saved.",
-			})
-		}))
-	}
+	co.Window(c.Scope()).Save()
 }
