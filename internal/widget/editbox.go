@@ -15,7 +15,14 @@ import (
 )
 
 const (
-	editBoxHistoryCapacity = 100
+	editBoxHistoryCapacity  = 100
+	editboxPaddingLeft      = 10
+	editboxPaddingRight     = 10
+	editboxPaddingTop       = 5
+	editboxPaddingBottom    = 5
+	editboxTextPaddingLeft  = 2
+	editboxTextPaddingRight = 2
+	editboxFontSize         = float32(18.0)
 )
 
 var EditBox = co.Define(&editBoxComponent{})
@@ -30,12 +37,12 @@ type EditBoxCallbackData struct {
 	OnSubmit func(string)
 }
 
+var _ ui.ElementHistoryHandler = (*editBoxComponent)(nil)
+var _ ui.ElementClipboardHandler = (*editBoxComponent)(nil)
 var _ ui.ElementResizeHandler = (*editBoxComponent)(nil)
 var _ ui.ElementRenderHandler = (*editBoxComponent)(nil)
 var _ ui.ElementKeyboardHandler = (*editBoxComponent)(nil)
 var _ ui.ElementMouseHandler = (*editBoxComponent)(nil)
-var _ ui.ElementHistoryHandler = (*editBoxComponent)(nil)
-var _ ui.ElementClipboardHandler = (*editBoxComponent)(nil)
 
 type editBoxComponent struct {
 	co.BaseComponent
@@ -53,6 +60,9 @@ type editBoxComponent struct {
 	onChange   func(string)
 	onSubmit   func(string)
 
+	textHeight int
+	textWidth  int
+
 	offsetX    int
 	maxOffsetX int
 
@@ -63,18 +73,28 @@ func (c *editBoxComponent) OnCreate() {
 	c.history = state.NewHistory(editBoxHistoryCapacity)
 
 	c.font = co.OpenFont(c.Scope(), "fonts/roboto-mono-regular.ttf")
-	c.fontSize = 18.0
+	c.fontSize = editboxFontSize
 
 	c.cursorColumn = 0
+	c.selectorColumn = 0
+
+	data := co.GetData[EditBoxData](c.Properties())
+	c.isReadOnly = data.ReadOnly
+	c.line = []rune(data.Text)
+	c.refreshTextSize()
 }
 
 func (c *editBoxComponent) OnUpsert() {
 	data := co.GetData[EditBoxData](c.Properties())
-	c.isReadOnly = data.ReadOnly
-	if data.Text != string(c.line) {
+	if data.ReadOnly != c.isReadOnly {
+		c.isReadOnly = data.ReadOnly
 		c.history.Clear()
 	}
-	c.line = []rune(data.Text)
+	if data.Text != string(c.line) {
+		c.history.Clear()
+		c.line = []rune(data.Text)
+		c.refreshTextSize()
+	}
 
 	callbackData := co.GetOptionalCallbackData(c.Properties(), EditBoxCallbackData{})
 	c.onChange = callbackData.OnChange
@@ -85,13 +105,13 @@ func (c *editBoxComponent) OnUpsert() {
 }
 
 func (c *editBoxComponent) Render() co.Instance {
-	contentSize := c.font.TextSize(string(c.line), c.fontSize)
 	padding := ui.Spacing{
-		Left:   10,
-		Right:  10,
-		Top:    5,
-		Bottom: 5,
+		Left:   editboxPaddingLeft,
+		Right:  editboxPaddingRight,
+		Top:    editboxPaddingTop,
+		Bottom: editboxPaddingBottom,
 	}
+	textPadding := editboxTextPaddingLeft + editboxTextPaddingRight
 
 	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
@@ -99,22 +119,77 @@ func (c *editBoxComponent) Render() co.Instance {
 			Essence:   c,
 			Focusable: opt.V(true),
 			IdealSize: opt.V(ui.Size{
-				Width:  int(contentSize.X) + padding.Horizontal(),
-				Height: int(c.fontSize) + padding.Vertical(),
+				Width:  c.textWidth + padding.Horizontal() + textPadding,
+				Height: c.textHeight + padding.Vertical(),
 			}),
 			Padding: padding,
 		})
 	})
 }
 
+func (c *editBoxComponent) OnUndo(element *ui.Element) bool {
+	canUndo := c.history.CanUndo()
+	if canUndo {
+		c.history.Undo()
+		c.notifyChanged()
+	}
+	return canUndo
+}
+
+func (c *editBoxComponent) OnRedo(element *ui.Element) bool {
+	canRedo := c.history.CanRedo()
+	if canRedo {
+		c.history.Redo()
+		c.notifyChanged()
+	}
+	return canRedo
+}
+
+func (c *editBoxComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
+	switch event.Action {
+	case ui.ClipboardActionCut:
+		if c.isReadOnly {
+			return false
+		}
+		if c.hasSelection() {
+			text := string(c.selectedText())
+			element.Window().RequestCopy(text)
+			c.history.Do(c.changeDeleteSelection())
+			c.notifyChanged()
+		}
+		return true
+
+	case ui.ClipboardActionCopy:
+		if c.hasSelection() {
+			text := string(c.selectedText())
+			element.Window().RequestCopy(text)
+		}
+		return true
+
+	case ui.ClipboardActionPaste:
+		if c.isReadOnly {
+			return false
+		}
+		if c.hasSelection() {
+			c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
+		} else {
+			c.history.Do(c.changeAppendText([]rune(event.Text)))
+		}
+		c.notifyChanged()
+		return true
+
+	default:
+		return false
+	}
+}
+
 func (c *editBoxComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
-	availableTextWidth := bounds.Width - element.Padding().Horizontal()
-	textWidth := int(c.font.TextSize(string(c.line), c.fontSize).X)
-	c.maxOffsetX = max(textWidth-availableTextWidth, 0)
-	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+	c.refreshScrollBounds(element)
 }
 
 func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
+	c.refreshScrollBounds(element)
+
 	bounds := canvas.DrawBounds(element, false)
 	paddedBounds := canvas.DrawBounds(element, true)
 	isFocused := element.Window().IsElementFocused(element)
@@ -227,7 +302,11 @@ func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.Keyboar
 func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
 	switch event.Action {
 	case ui.MouseActionScroll:
-		c.offsetX -= event.ScrollX
+		if event.Modifiers.Contains(ui.KeyModifierShift) && (event.ScrollX == 0) {
+			c.offsetX -= event.ScrollY
+		} else {
+			c.offsetX -= event.ScrollX
+		}
 		c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 		element.Invalidate()
 		return true
@@ -260,62 +339,6 @@ func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 			c.cursorColumn = c.findCursorColumn(element, event.X)
 			element.Invalidate()
 		}
-		return true
-
-	default:
-		return false
-	}
-}
-
-func (c *editBoxComponent) OnUndo(element *ui.Element) bool {
-	canUndo := c.history.CanUndo()
-	if canUndo {
-		c.history.Undo()
-		c.notifyChanged()
-	}
-	return canUndo
-}
-
-func (c *editBoxComponent) OnRedo(element *ui.Element) bool {
-	canRedo := c.history.CanRedo()
-	if canRedo {
-		c.history.Redo()
-		c.notifyChanged()
-	}
-	return canRedo
-}
-
-func (c *editBoxComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
-	switch event.Action {
-	case ui.ClipboardActionCut:
-		if c.isReadOnly {
-			return false
-		}
-		if c.hasSelection() {
-			text := string(c.selectedText())
-			element.Window().RequestCopy(text)
-			c.history.Do(c.changeDeleteSelection())
-			c.notifyChanged()
-		}
-		return true
-
-	case ui.ClipboardActionCopy:
-		if c.hasSelection() {
-			text := string(c.selectedText())
-			element.Window().RequestCopy(text)
-		}
-		return true
-
-	case ui.ClipboardActionPaste:
-		if c.isReadOnly {
-			return false
-		}
-		if c.hasSelection() {
-			c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
-		} else {
-			c.history.Do(c.changeAppendText([]rune(event.Text)))
-		}
-		c.notifyChanged()
 		return true
 
 	default:
@@ -690,7 +713,20 @@ func (c *editBoxComponent) findCursorColumn(element *ui.Element, x int) int {
 	return bestColumn
 }
 
+func (c *editBoxComponent) refreshTextSize() {
+	c.textWidth = int(c.font.LineWidth(c.line, c.fontSize))
+	c.textHeight = int(c.font.LineHeight(c.fontSize))
+}
+
+func (c *editBoxComponent) refreshScrollBounds(element *ui.Element) {
+	bounds := element.ContentBounds()
+	availableTextWidth := bounds.Width
+	c.maxOffsetX = max(c.textWidth-availableTextWidth, 0)
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+}
+
 func (c *editBoxComponent) notifyChanged() {
+	c.refreshTextSize()
 	if c.onChange != nil {
 		c.onChange(string(c.line))
 	}
