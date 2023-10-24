@@ -1,11 +1,49 @@
 package shortcuts
 
-// TODO: IsJumpToLineStart
-// TODO: IsJumpToLineEnd
+import (
+	"github.com/mokiat/lacking/app"
+	"github.com/mokiat/lacking/ui"
+)
+
+func IsJumpToLineStart(os app.OS, event ui.KeyboardEvent) bool {
+	event.Modifiers = event.Modifiers & ^ui.KeyModifierSet(ui.KeyModifierShift) // remove shift
+	switch os {
+	case app.OSDarwin:
+		return IsKeyCombo(event,
+			ui.KeyModifiers(ui.KeyModifierSuper), ui.KeyCodeArrowLeft,
+		) || IsKeyCombo(event,
+			ui.KeyModifiers(), ui.KeyCodeHome,
+		)
+	case app.OSWindows:
+		fallthrough
+	case app.OSLinux:
+		fallthrough
+	default:
+		return IsKeyCombo(event,
+			ui.KeyModifiers(), ui.KeyCodeHome,
+		)
+	}
+}
+
+func IsJumpToLineEnd(os app.OS, event ui.KeyboardEvent) bool {
+	event.Modifiers = event.Modifiers & ^ui.KeyModifierSet(ui.KeyModifierShift) // remove shift
+	switch os {
+	case app.OSDarwin:
+		return IsKeyCombo(event,
+			ui.KeyModifiers(ui.KeyModifierSuper), ui.KeyCodeArrowRight,
+		) || IsKeyCombo(event,
+			ui.KeyModifiers(), ui.KeyCodeEnd,
+		)
+	case app.OSWindows:
+		fallthrough
+	case app.OSLinux:
+		fallthrough
+	default:
+		return IsKeyCombo(event,
+			ui.KeyModifiers(), ui.KeyCodeEnd,
+		)
+	}
+}
+
 // TODO: IsJumpToDocumentStart
 // TODO: IsJumpToDocumentEnd
-
-// TODO: IsSelectToLineStart
-// TODO: IsSelectToLineEnd
-// TODO: IsSelectToDocumentStart
-// TODO: IsSelectToDocumentEnd

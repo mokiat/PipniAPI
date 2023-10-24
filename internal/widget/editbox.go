@@ -355,15 +355,7 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		c.selectAll()
 		return true
 	}
-
-	switch event.Code {
-
-	case ui.KeyCodeEscape:
-		c.isDragging = false
-		c.resetSelector()
-		return true
-
-	case ui.KeyCodeHome:
+	if shortcuts.IsJumpToLineStart(os, event) {
 		if !c.isReadOnly {
 			c.moveCursorToStartOfLine()
 			if !event.Modifiers.Contains(ui.KeyModifierShift) {
@@ -371,14 +363,22 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 			}
 		}
 		return true
-
-	case ui.KeyCodeEnd:
+	}
+	if shortcuts.IsJumpToLineEnd(os, event) {
 		if !c.isReadOnly {
 			c.moveCursorToEndOfLine()
 			if !event.Modifiers.Contains(ui.KeyModifierShift) {
 				c.resetSelector()
 			}
 		}
+		return true
+	}
+
+	switch event.Code {
+
+	case ui.KeyCodeEscape:
+		c.isDragging = false
+		c.resetSelector()
 		return true
 
 	case ui.KeyCodeArrowUp:
@@ -465,8 +465,7 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		return true
 
 	case ui.KeyCodeTab:
-		event.Rune = '\t'
-		return c.onKeyboardTypeEvent(element, event)
+		return false
 
 	default:
 		return false
