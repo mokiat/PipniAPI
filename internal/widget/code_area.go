@@ -17,19 +17,19 @@ import (
 )
 
 const (
-	codeAreaHistoryCapacity  = 100
-	codeAreaPaddingLeft      = 2
-	codeAreaPaddingRight     = 2
-	codeAreaPaddingTop       = 2
-	codeAreaPaddingBottom    = 2
-	codeAreaTextPaddingLeft  = 5
-	codeAreaTextPaddingRight = 5
-	codeAreaRulerWidth       = 100
-	codeAreaRulerPadding     = 10
-	codeAreaCursorWidth      = float32(1.0)
-	codeAreaBorderSize       = float32(2.0)
-	codeAreaKeyScrollSpeed   = 20
-	codeAreaFontSize         = float32(18.0)
+	codeAreaHistoryCapacity   = 100
+	codeAreaPaddingLeft       = 2
+	codeAreaPaddingRight      = 2
+	codeAreaPaddingTop        = 2
+	codeAreaPaddingBottom     = 2
+	codeAreaTextPaddingLeft   = 5
+	codeAreaTextPaddingRight  = 5
+	codeAreaRulerPaddingLeft  = 5
+	codeAreaRulerPaddingRight = 5
+	codeAreaCursorWidth       = float32(1.0)
+	codeAreaBorderSize        = float32(2.0)
+	codeAreaKeyScrollSpeed    = 20
+	codeAreaFontSize          = float32(18.0)
 )
 
 var CodeArea = co.Define(&codeAreaComponent{})
@@ -69,6 +69,7 @@ type codeAreaComponent struct {
 
 	textWidth  int
 	textHeight int
+	rulerWidth int
 
 	offsetX    int
 	offsetY    int
@@ -122,6 +123,7 @@ func (c *codeAreaComponent) Render() co.Instance {
 		Bottom: codeAreaPaddingBottom,
 	}
 	textPadding := codeAreaTextPaddingLeft + codeAreaTextPaddingRight
+	rulerPadding := codeAreaRulerPaddingLeft + codeAreaRulerPaddingRight
 
 	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
@@ -129,9 +131,9 @@ func (c *codeAreaComponent) Render() co.Instance {
 			Essence:   c,
 			Focusable: opt.V(true),
 			IdealSize: opt.V(ui.Size{
-				Width:  c.textWidth + padding.Horizontal() + textPadding + codeAreaRulerWidth,
-				Height: c.textHeight + padding.Vertical(),
-			}),
+				Width:  c.textWidth + textPadding + c.rulerWidth + rulerPadding,
+				Height: c.textHeight,
+			}.Grow(padding.Size())),
 		})
 	})
 }
@@ -200,7 +202,37 @@ func (c *codeAreaComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
 
 func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	c.refreshScrollBounds(element)
+	c.drawFrame(element, canvas)
+	c.drawContent(element, canvas)
+	c.drawRuler(element, canvas)
+	c.drawFrameBorder(element, canvas)
+}
 
+func (c *codeAreaComponent) drawFrame(element *ui.Element, canvas *ui.Canvas) {
+	bounds := canvas.DrawBounds(element, false)
+
+	canvas.Reset()
+	canvas.Rectangle(bounds.Position, bounds.Size)
+	canvas.Fill(ui.Fill{
+		Color: std.SurfaceColor,
+	})
+}
+
+func (c *codeAreaComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canvas) {
+	bounds := canvas.DrawBounds(element, false)
+
+	canvas.Reset()
+	if element.IsFocused() {
+		canvas.SetStrokeColor(std.SecondaryLightColor)
+	} else {
+		canvas.SetStrokeColor(std.PrimaryLightColor)
+	}
+	canvas.SetStrokeSize(codeAreaBorderSize)
+	canvas.Rectangle(bounds.Position, bounds.Size)
+	canvas.Stroke()
+}
+
+func (c *codeAreaComponent) drawContent(element *ui.Element, canvas *ui.Canvas) {
 	// TODO: Take scrolling into consideration.
 	// Use binary search to figure out the first and last lines that are visible.
 	// This should optimize rendering of large texts.
@@ -209,15 +241,6 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	// number of rows and the digits.
 
 	bounds := canvas.DrawBounds(element, false)
-	isFocused := element.Window().IsElementFocused(element)
-
-	// Background
-	canvas.Reset()
-	canvas.Rectangle(bounds.Position, bounds.Size)
-	canvas.Fill(ui.Fill{
-		Color: std.SurfaceColor,
-	})
-
 	selection := c.selection()
 
 	// Draw text content
@@ -267,37 +290,40 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 
 		linePosition.Y += lineHeight.Y
 	}
+}
 
-	// Lines indicator
+func (c *codeAreaComponent) drawRuler(element *ui.Element, canvas *ui.Canvas) {
+	bounds := canvas.DrawBounds(element, true)
+	lineHeight := c.font.LineHeight(c.fontSize)
+
+	rulerPosition := bounds.Position
+	rulerWidth := c.rulerWidth + codeAreaRulerPaddingLeft + codeAreaRulerPaddingRight
+	rulerSize := sprec.NewVec2(float32(rulerWidth), bounds.Height())
+
 	canvas.Reset()
 	canvas.Rectangle(
-		bounds.Position,
-		sprec.NewVec2(90, bounds.Size.Y),
+		rulerPosition,
+		rulerSize,
 	)
 	canvas.Fill(ui.Fill{
 		Color: std.PrimaryLightColor,
 	})
 
-	linePosition = sprec.Vec2Diff(bounds.Position, sprec.NewVec2(0.0, float32(c.offsetY)))
-	for i := range c.lines {
-		// Draw line number
-		numberPosition := sprec.Vec2Sum(linePosition, sprec.NewVec2(10.0, 0.0))
-		canvas.Reset()
-		canvas.FillText(strconv.Itoa(i+1), numberPosition, ui.Typography{
-			Font:  c.font,
-			Size:  c.fontSize,
-			Color: std.OnSurfaceColor,
-		})
-		linePosition.Y += lineHeight.Y
+	rulerTextPosition := sprec.Vec2{
+		X: bounds.X() + codeAreaRulerPaddingLeft,
+		Y: bounds.Y() - float32(c.offsetY),
 	}
-
-	// Highlight
-	if isFocused {
-		canvas.Reset()
-		canvas.SetStrokeColor(std.SecondaryColor)
-		canvas.SetStrokeSize(1.0)
-		canvas.Rectangle(bounds.Position, bounds.Size)
-		canvas.Stroke()
+	for i := range c.lines {
+		isLineVisible := (rulerTextPosition.Y+lineHeight > 0) && (rulerTextPosition.Y < bounds.Y()+bounds.Height())
+		if isLineVisible {
+			canvas.Reset()
+			canvas.FillText(strconv.Itoa(i+1), rulerTextPosition, ui.Typography{
+				Font:  c.font,
+				Size:  c.fontSize,
+				Color: std.OnSurfaceColor,
+			})
+		}
+		rulerTextPosition.Y += lineHeight
 	}
 }
 
@@ -375,14 +401,19 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 }
 
 func (c *codeAreaComponent) refreshTextSize() {
-	var textSize sprec.Vec2
+	txtWidth := float32(0.0)
 	for _, line := range c.lines {
-		lineSize := c.font.TextSize(string(line), c.fontSize)
-		textSize.X = max(textSize.X, lineSize.X)
-		textSize.Y += lineSize.Y
+		lineWidth := c.font.LineWidth(line, c.fontSize)
+		txtWidth = max(txtWidth, lineWidth)
 	}
-	c.textWidth = int(math.Ceil(float64(textSize.X)))
-	c.textHeight = int(math.Ceil(float64(textSize.Y)))
+	txtHeight := c.font.LineHeight(c.fontSize) * float32(len(c.lines))
+
+	c.textWidth = int(math.Ceil(float64(txtWidth)))
+	c.textHeight = int(math.Ceil(float64(txtHeight)))
+
+	digitSize := c.font.LineWidth([]rune{'0'}, c.fontSize)
+	digitCount := countDigits(len(c.lines))
+	c.rulerWidth = int(math.Ceil(float64(digitSize)) * float64(digitCount))
 }
 
 func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
@@ -539,7 +570,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
 			c.resetSelector()
 		}
-		c.onChange(c.constructText())
+		c.notifyChanged()
 		return true
 
 	case ui.KeyCodeDelete:
@@ -551,7 +582,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
 			c.resetSelector()
 		}
-		c.onChange(c.constructText())
+		c.notifyChanged()
 		return true
 
 	case ui.KeyCodeEnter:
@@ -562,7 +593,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
 			c.resetSelector()
 		}
-		c.onChange(c.constructText())
+		c.notifyChanged()
 		return true
 
 	case ui.KeyCodeTab:
@@ -573,7 +604,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
 			c.resetSelector()
 		}
-		c.onChange(c.constructText())
+		c.notifyChanged()
 		return true
 
 	default:
@@ -587,7 +618,7 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 	}
 	c.appendCharacter(event.Rune)
 	c.resetSelector()
-	c.onChange(c.constructText())
+	c.notifyChanged()
 	return true
 }
 
@@ -809,4 +840,15 @@ func splitLines(text string) [][]rune {
 
 func lineToText(input []rune) string {
 	return string(input)
+}
+
+func countDigits(number int) int {
+	number = abs(number)
+
+	result := 1
+	for number > 9 {
+		number /= 10
+		result++
+	}
+	return result
 }

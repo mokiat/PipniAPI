@@ -123,9 +123,9 @@ func (c *editboxComponent) Render() co.Instance {
 			Essence:   c,
 			Focusable: opt.V(true),
 			IdealSize: opt.V(ui.Size{
-				Width:  c.textWidth + padding.Horizontal() + textPadding,
-				Height: c.textHeight + padding.Vertical(),
-			}),
+				Width:  c.textWidth + textPadding,
+				Height: c.textHeight,
+			}.Grow(padding.Size())),
 			Padding: padding,
 		})
 	})
