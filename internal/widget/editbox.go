@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	editBoxHistoryCapacity  = 100
+	editboxHistoryCapacity  = 100
 	editboxPaddingLeft      = 10
 	editboxPaddingRight     = 10
 	editboxPaddingTop       = 5
@@ -29,7 +29,7 @@ const (
 	editboxFontSize         = float32(18.0)
 )
 
-var EditBox = co.Define(&editBoxComponent{})
+var EditBox = co.Define(&editboxComponent{})
 
 type EditBoxData struct {
 	ReadOnly bool
@@ -41,14 +41,14 @@ type EditBoxCallbackData struct {
 	OnSubmit func(string)
 }
 
-var _ ui.ElementHistoryHandler = (*editBoxComponent)(nil)
-var _ ui.ElementClipboardHandler = (*editBoxComponent)(nil)
-var _ ui.ElementResizeHandler = (*editBoxComponent)(nil)
-var _ ui.ElementRenderHandler = (*editBoxComponent)(nil)
-var _ ui.ElementKeyboardHandler = (*editBoxComponent)(nil)
-var _ ui.ElementMouseHandler = (*editBoxComponent)(nil)
+var _ ui.ElementHistoryHandler = (*editboxComponent)(nil)
+var _ ui.ElementClipboardHandler = (*editboxComponent)(nil)
+var _ ui.ElementResizeHandler = (*editboxComponent)(nil)
+var _ ui.ElementRenderHandler = (*editboxComponent)(nil)
+var _ ui.ElementKeyboardHandler = (*editboxComponent)(nil)
+var _ ui.ElementMouseHandler = (*editboxComponent)(nil)
 
-type editBoxComponent struct {
+type editboxComponent struct {
 	co.BaseComponent
 
 	history *state.History
@@ -73,8 +73,8 @@ type editBoxComponent struct {
 	isDragging bool
 }
 
-func (c *editBoxComponent) OnCreate() {
-	c.history = state.NewHistory(editBoxHistoryCapacity)
+func (c *editboxComponent) OnCreate() {
+	c.history = state.NewHistory(editboxHistoryCapacity)
 
 	c.font = co.OpenFont(c.Scope(), "fonts/roboto-mono-regular.ttf")
 	c.fontSize = editboxFontSize
@@ -88,7 +88,7 @@ func (c *editBoxComponent) OnCreate() {
 	c.refreshTextSize()
 }
 
-func (c *editBoxComponent) OnUpsert() {
+func (c *editboxComponent) OnUpsert() {
 	data := co.GetData[EditBoxData](c.Properties())
 	if data.ReadOnly != c.isReadOnly {
 		c.isReadOnly = data.ReadOnly
@@ -108,7 +108,7 @@ func (c *editBoxComponent) OnUpsert() {
 	c.selectorColumn = min(c.selectorColumn, len(c.line))
 }
 
-func (c *editBoxComponent) Render() co.Instance {
+func (c *editboxComponent) Render() co.Instance {
 	padding := ui.Spacing{
 		Left:   editboxPaddingLeft,
 		Right:  editboxPaddingRight,
@@ -131,7 +131,7 @@ func (c *editBoxComponent) Render() co.Instance {
 	})
 }
 
-func (c *editBoxComponent) OnUndo(element *ui.Element) bool {
+func (c *editboxComponent) OnUndo(element *ui.Element) bool {
 	canUndo := c.history.CanUndo()
 	if canUndo {
 		c.history.Undo()
@@ -140,7 +140,7 @@ func (c *editBoxComponent) OnUndo(element *ui.Element) bool {
 	return canUndo
 }
 
-func (c *editBoxComponent) OnRedo(element *ui.Element) bool {
+func (c *editboxComponent) OnRedo(element *ui.Element) bool {
 	canRedo := c.history.CanRedo()
 	if canRedo {
 		c.history.Redo()
@@ -149,7 +149,7 @@ func (c *editBoxComponent) OnRedo(element *ui.Element) bool {
 	return canRedo
 }
 
-func (c *editBoxComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
+func (c *editboxComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
 	switch event.Action {
 	case ui.ClipboardActionCut:
 		if c.isReadOnly {
@@ -187,18 +187,18 @@ func (c *editBoxComponent) OnClipboardEvent(element *ui.Element, event ui.Clipbo
 	}
 }
 
-func (c *editBoxComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
+func (c *editboxComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
 	c.refreshScrollBounds(element)
 }
 
-func (c *editBoxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
+func (c *editboxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	c.refreshScrollBounds(element)
 	c.drawFrame(element, canvas)
 	c.drawContent(element, canvas)
 	c.drawFrameBorder(element, canvas)
 }
 
-func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+func (c *editboxComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	switch event.Action {
 	case ui.KeyboardActionDown, ui.KeyboardActionRepeat:
 		consumed := c.onKeyboardPressEvent(element, event)
@@ -219,7 +219,7 @@ func (c *editBoxComponent) OnKeyboardEvent(element *ui.Element, event ui.Keyboar
 	}
 }
 
-func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
+func (c *editboxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
 	switch event.Action {
 	case ui.MouseActionScroll:
 		if event.Modifiers.Contains(ui.KeyModifierShift) && (event.ScrollX == 0) {
@@ -266,7 +266,7 @@ func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 	}
 }
 
-func (c *editBoxComponent) drawFrame(element *ui.Element, canvas *ui.Canvas) {
+func (c *editboxComponent) drawFrame(element *ui.Element, canvas *ui.Canvas) {
 	bounds := canvas.DrawBounds(element, false)
 
 	canvas.Reset()
@@ -285,7 +285,7 @@ func (c *editBoxComponent) drawFrame(element *ui.Element, canvas *ui.Canvas) {
 	})
 }
 
-func (c *editBoxComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canvas) {
+func (c *editboxComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canvas) {
 	bounds := canvas.DrawBounds(element, false)
 
 	canvas.Reset()
@@ -308,7 +308,7 @@ func (c *editBoxComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canva
 	canvas.Stroke()
 }
 
-func (c *editBoxComponent) drawContent(element *ui.Element, canvas *ui.Canvas) {
+func (c *editboxComponent) drawContent(element *ui.Element, canvas *ui.Canvas) {
 	contentBounds := canvas.DrawBounds(element, true)
 
 	canvas.Push()
@@ -328,7 +328,7 @@ func (c *editBoxComponent) drawContent(element *ui.Element, canvas *ui.Canvas) {
 	canvas.Pop()
 }
 
-func (c *editBoxComponent) drawSelection(element *ui.Element, canvas *ui.Canvas) {
+func (c *editboxComponent) drawSelection(element *ui.Element, canvas *ui.Canvas) {
 	if !c.hasSelection() || !element.IsFocused() {
 		return
 	}
@@ -348,7 +348,7 @@ func (c *editBoxComponent) drawSelection(element *ui.Element, canvas *ui.Canvas)
 	})
 }
 
-func (c *editBoxComponent) drawText(element *ui.Element, canvas *ui.Canvas) {
+func (c *editboxComponent) drawText(element *ui.Element, canvas *ui.Canvas) {
 	if len(c.line) == 0 {
 		return
 	}
@@ -361,7 +361,7 @@ func (c *editBoxComponent) drawText(element *ui.Element, canvas *ui.Canvas) {
 	})
 }
 
-func (c *editBoxComponent) drawCursor(element *ui.Element, canvas *ui.Canvas) {
+func (c *editboxComponent) drawCursor(element *ui.Element, canvas *ui.Canvas) {
 	if c.isReadOnly || !element.IsFocused() {
 		return
 	}
@@ -380,7 +380,7 @@ func (c *editBoxComponent) drawCursor(element *ui.Element, canvas *ui.Canvas) {
 	})
 }
 
-func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	os := element.Window().Platform().OS()
 	if shortcuts.IsClose(os, event) {
 		return false // propagate up
@@ -529,7 +529,7 @@ func (c *editBoxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 	}
 }
 
-func (c *editBoxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+func (c *editboxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	if c.isReadOnly {
 		return false
 	}
@@ -542,69 +542,69 @@ func (c *editBoxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 	return true
 }
 
-func (c *editBoxComponent) hasSelection() bool {
+func (c *editboxComponent) hasSelection() bool {
 	return c.cursorColumn != c.selectorColumn
 }
 
-func (c *editBoxComponent) selectionRange() (int, int) {
+func (c *editboxComponent) selectionRange() (int, int) {
 	fromColumn := min(c.cursorColumn, c.selectorColumn)
 	toColumn := max(c.cursorColumn, c.selectorColumn)
 	return fromColumn, toColumn
 }
 
-func (c *editBoxComponent) selectedText() []rune {
+func (c *editboxComponent) selectedText() []rune {
 	fromColumn, toColumn := c.selectionRange()
 	return slices.Clone(c.line[fromColumn:toColumn])
 }
 
-func (c *editBoxComponent) selectAll() {
+func (c *editboxComponent) selectAll() {
 	c.selectorColumn = 0
 	c.cursorColumn = len(c.line)
 }
 
-func (c *editBoxComponent) scrollLeft() {
+func (c *editboxComponent) scrollLeft() {
 	c.offsetX -= editboxKeyScrollSpeed
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
-func (c *editBoxComponent) scrollRight() {
+func (c *editboxComponent) scrollRight() {
 	c.offsetX += editboxKeyScrollSpeed
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
-func (c *editBoxComponent) resetSelector() {
+func (c *editboxComponent) resetSelector() {
 	c.selectorColumn = c.cursorColumn
 }
 
-func (c *editBoxComponent) moveCursorLeft() {
+func (c *editboxComponent) moveCursorLeft() {
 	if c.cursorColumn > 0 {
 		c.cursorColumn--
 	}
 }
 
-func (c *editBoxComponent) moveCursorRight() {
+func (c *editboxComponent) moveCursorRight() {
 	if c.cursorColumn < len(c.line) {
 		c.cursorColumn++
 	}
 }
 
-func (c *editBoxComponent) moveCursorToSelectionStart() {
+func (c *editboxComponent) moveCursorToSelectionStart() {
 	c.cursorColumn = min(c.cursorColumn, c.selectorColumn)
 }
 
-func (c *editBoxComponent) moveCursorToSelectionEnd() {
+func (c *editboxComponent) moveCursorToSelectionEnd() {
 	c.cursorColumn = max(c.cursorColumn, c.selectorColumn)
 }
 
-func (c *editBoxComponent) moveCursorToStartOfLine() {
+func (c *editboxComponent) moveCursorToStartOfLine() {
 	c.cursorColumn = 0
 }
 
-func (c *editBoxComponent) moveCursorToEndOfLine() {
+func (c *editboxComponent) moveCursorToEndOfLine() {
 	c.cursorColumn = len(c.line)
 }
 
-func (c *editBoxComponent) changeAppendText(text []rune) state.Change {
+func (c *editboxComponent) changeAppendText(text []rune) state.Change {
 	lng := len(text)
 	return &textTypeChange{
 		when: time.Now(),
@@ -621,7 +621,7 @@ func (c *editBoxComponent) changeAppendText(text []rune) state.Change {
 	}
 }
 
-func (c *editBoxComponent) changeReplaceSelection(text []rune) state.Change {
+func (c *editboxComponent) changeReplaceSelection(text []rune) state.Change {
 	fromColumn, toColumn := c.selectionRange()
 	selectedText := slices.Clone(c.line[fromColumn:toColumn])
 	return &textTypeChange{
@@ -641,7 +641,7 @@ func (c *editBoxComponent) changeReplaceSelection(text []rune) state.Change {
 	}
 }
 
-func (c *editBoxComponent) changeDeleteSelection() state.Change {
+func (c *editboxComponent) changeDeleteSelection() state.Change {
 	fromColumn, toColumn := c.selectionRange()
 	selectedText := slices.Clone(c.line[fromColumn:toColumn])
 	return &textTypeChange{
@@ -659,7 +659,7 @@ func (c *editBoxComponent) changeDeleteSelection() state.Change {
 	}
 }
 
-func (c *editBoxComponent) changeDeleteCharacterLeft() state.Change {
+func (c *editboxComponent) changeDeleteCharacterLeft() state.Change {
 	if c.cursorColumn == 0 {
 		return emptyTextTypeChange()
 	}
@@ -679,7 +679,7 @@ func (c *editBoxComponent) changeDeleteCharacterLeft() state.Change {
 	}
 }
 
-func (c *editBoxComponent) changeDeleteCharacterRight() state.Change {
+func (c *editboxComponent) changeDeleteCharacterRight() state.Change {
 	if c.cursorColumn >= len(c.line) {
 		return emptyTextTypeChange()
 	}
@@ -699,7 +699,7 @@ func (c *editBoxComponent) changeDeleteCharacterRight() state.Change {
 	}
 }
 
-func (c *editBoxComponent) actionInsertText(position int, text []rune) func() {
+func (c *editboxComponent) actionInsertText(position int, text []rune) func() {
 	return func() {
 		preText := c.line[:position]
 		postText := c.line[position:]
@@ -711,25 +711,25 @@ func (c *editBoxComponent) actionInsertText(position int, text []rune) func() {
 	}
 }
 
-func (c *editBoxComponent) actionDeleteText(fromPosition, toPosition int) func() {
+func (c *editboxComponent) actionDeleteText(fromPosition, toPosition int) func() {
 	return func() {
 		c.line = slices.Delete(c.line, fromPosition, toPosition)
 	}
 }
 
-func (c *editBoxComponent) actionRelocateCursor(position int) func() {
+func (c *editboxComponent) actionRelocateCursor(position int) func() {
 	return func() {
 		c.cursorColumn = position
 	}
 }
 
-func (c *editBoxComponent) actionRelocateSelector(position int) func() {
+func (c *editboxComponent) actionRelocateSelector(position int) func() {
 	return func() {
 		c.selectorColumn = position
 	}
 }
 
-func (c *editBoxComponent) findCursorColumn(element *ui.Element, x int) int {
+func (c *editboxComponent) findCursorColumn(element *ui.Element, x int) int {
 	x -= element.Padding().Left - int(c.offsetX) + editboxTextPaddingLeft
 
 	bestColumn := 0
@@ -750,26 +750,26 @@ func (c *editBoxComponent) findCursorColumn(element *ui.Element, x int) int {
 	return bestColumn
 }
 
-func (c *editBoxComponent) refreshTextSize() {
+func (c *editboxComponent) refreshTextSize() {
 	c.textWidth = int(c.font.LineWidth(c.line, c.fontSize))
 	c.textHeight = int(c.font.LineHeight(c.fontSize))
 }
 
-func (c *editBoxComponent) refreshScrollBounds(element *ui.Element) {
+func (c *editboxComponent) refreshScrollBounds(element *ui.Element) {
 	bounds := element.ContentBounds()
 	availableTextWidth := bounds.Width - editboxTextPaddingLeft - editboxTextPaddingRight
 	c.maxOffsetX = max(c.textWidth-availableTextWidth, 0)
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
-func (c *editBoxComponent) notifyChanged() {
+func (c *editboxComponent) notifyChanged() {
 	c.refreshTextSize()
 	if c.onChange != nil {
 		c.onChange(string(c.line))
 	}
 }
 
-func (c *editBoxComponent) notifySubmitted() {
+func (c *editboxComponent) notifySubmitted() {
 	if c.onSubmit != nil {
 		c.onSubmit(string(c.line))
 	}
