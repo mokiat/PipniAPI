@@ -25,6 +25,7 @@ const (
 	editboxCursorWidth      = float32(1.0)
 	editboxBorderSize       = float32(2.0)
 	editboxBorderRadius     = float32(8.0)
+	editboxKeyScrollSpeed   = 20
 	editboxFontSize         = float32(18.0)
 )
 
@@ -242,7 +243,7 @@ func (c *editBoxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 		element.Invalidate()
 		return true
 
-	case ui.MouseActionMove: // TODO: Use dragging event
+	case ui.MouseActionMove:
 		if c.isDragging {
 			c.cursorColumn = c.findCursorColumn(element, event.X)
 			element.Invalidate()
@@ -562,12 +563,12 @@ func (c *editBoxComponent) selectAll() {
 }
 
 func (c *editBoxComponent) scrollLeft() {
-	c.offsetX -= 20
+	c.offsetX -= editboxKeyScrollSpeed
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
 func (c *editBoxComponent) scrollRight() {
-	c.offsetX += 20
+	c.offsetX += editboxKeyScrollSpeed
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
@@ -621,8 +622,7 @@ func (c *editBoxComponent) changeAppendText(text []rune) state.Change {
 }
 
 func (c *editBoxComponent) changeReplaceSelection(text []rune) state.Change {
-	fromColumn := min(c.cursorColumn, c.selectorColumn)
-	toColumn := max(c.cursorColumn, c.selectorColumn)
+	fromColumn, toColumn := c.selectionRange()
 	selectedText := slices.Clone(c.line[fromColumn:toColumn])
 	return &textTypeChange{
 		when: time.Now(),
@@ -642,8 +642,7 @@ func (c *editBoxComponent) changeReplaceSelection(text []rune) state.Change {
 }
 
 func (c *editBoxComponent) changeDeleteSelection() state.Change {
-	fromColumn := min(c.cursorColumn, c.selectorColumn)
-	toColumn := max(c.cursorColumn, c.selectorColumn)
+	fromColumn, toColumn := c.selectionRange()
 	selectedText := slices.Clone(c.line[fromColumn:toColumn])
 	return &textTypeChange{
 		when: time.Now(),
@@ -661,7 +660,7 @@ func (c *editBoxComponent) changeDeleteSelection() state.Change {
 }
 
 func (c *editBoxComponent) changeDeleteCharacterLeft() state.Change {
-	if c.cursorColumn <= 0 {
+	if c.cursorColumn == 0 {
 		return emptyTextTypeChange()
 	}
 	deletedCharacter := c.line[c.cursorColumn-1]
@@ -731,14 +730,14 @@ func (c *editBoxComponent) actionRelocateSelector(position int) func() {
 }
 
 func (c *editBoxComponent) findCursorColumn(element *ui.Element, x int) int {
-	x -= element.Padding().Left - int(c.offsetX)
+	x -= element.Padding().Left - int(c.offsetX) + editboxTextPaddingLeft
 
 	bestColumn := 0
 	bestDistance := abs(x)
 
 	column := 1
 	offset := float32(0.0)
-	iterator := c.font.TextIterator(string(c.line), c.fontSize)
+	iterator := c.font.LineIterator(c.line, c.fontSize)
 	for iterator.Next() {
 		character := iterator.Character()
 		offset += character.Kern + character.Width
