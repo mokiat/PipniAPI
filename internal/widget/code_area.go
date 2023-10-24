@@ -4,7 +4,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
@@ -18,9 +17,19 @@ import (
 )
 
 const (
-	codeAreaHistoryCapacity = 100
-	codeAreaLinesWidth      = 100
-	codeAreaLinesPadding    = 10
+	codeAreaHistoryCapacity  = 100
+	codeAreaPaddingLeft      = 2
+	codeAreaPaddingRight     = 2
+	codeAreaPaddingTop       = 2
+	codeAreaPaddingBottom    = 2
+	codeAreaTextPaddingLeft  = 5
+	codeAreaTextPaddingRight = 5
+	codeAreaRulerWidth       = 100
+	codeAreaRulerPadding     = 10
+	codeAreaCursorWidth      = float32(1.0)
+	codeAreaBorderSize       = float32(2.0)
+	codeAreaKeyScrollSpeed   = 20
+	codeAreaFontSize         = float32(18.0)
 )
 
 var CodeArea = co.Define(&codeAreaComponent{})
@@ -34,12 +43,12 @@ type CodeAreaCallbackData struct {
 	OnChange func(string)
 }
 
+var _ ui.ElementHistoryHandler = (*codeAreaComponent)(nil)
+var _ ui.ElementClipboardHandler = (*codeAreaComponent)(nil)
 var _ ui.ElementResizeHandler = (*codeAreaComponent)(nil)
 var _ ui.ElementRenderHandler = (*codeAreaComponent)(nil)
 var _ ui.ElementKeyboardHandler = (*codeAreaComponent)(nil)
 var _ ui.ElementMouseHandler = (*codeAreaComponent)(nil)
-var _ ui.ElementHistoryHandler = (*codeAreaComponent)(nil)
-var _ ui.ElementClipboardHandler = (*codeAreaComponent)(nil)
 
 type codeAreaComponent struct {
 	co.BaseComponent
@@ -49,10 +58,8 @@ type codeAreaComponent struct {
 	font     *ui.Font
 	fontSize float32
 
-	cursorRow           int
-	cursorColumn        int
-	cursorVirtualColumn int
-
+	cursorRow      int
+	cursorColumn   int
 	selectorRow    int
 	selectorColumn int
 
@@ -72,26 +79,31 @@ type codeAreaComponent struct {
 }
 
 func (c *codeAreaComponent) OnCreate() {
-	c.history = state.NewHistory(editBoxHistoryCapacity)
+	c.history = state.NewHistory(editboxHistoryCapacity)
 
 	c.font = co.OpenFont(c.Scope(), "fonts/roboto-mono-regular.ttf")
-	c.fontSize = 18.0 // TODO: Was 20. Is it better with 18? EditBox is 18.
+	c.fontSize = codeAreaFontSize
 
 	c.cursorRow = 0
 	c.cursorColumn = 0
-	c.cursorVirtualColumn = 0
+
+	data := co.GetData[CodeAreaData](c.Properties())
+	c.isReadOnly = data.ReadOnly
+	c.lines = splitLines(data.Code)
+	c.refreshTextSize()
 }
 
 func (c *codeAreaComponent) OnUpsert() {
 	data := co.GetData[CodeAreaData](c.Properties())
-	c.isReadOnly = data.ReadOnly
-	if data.Code != c.constructText() {
+	if data.ReadOnly != c.isReadOnly {
+		c.isReadOnly = data.ReadOnly
 		c.history.Clear()
 	}
-	c.lines = gog.Map(strings.Split(data.Code, "\n"), func(line string) []rune {
-		return []rune(line)
-	})
-	c.refreshTextSize()
+	if data.Code != c.constructText() {
+		c.history.Clear()
+		c.lines = splitLines(data.Code)
+		c.refreshTextSize()
+	}
 
 	callbackData := co.GetOptionalCallbackData[CodeAreaCallbackData](c.Properties(), CodeAreaCallbackData{})
 	c.onChange = callbackData.OnChange
@@ -103,44 +115,83 @@ func (c *codeAreaComponent) OnUpsert() {
 }
 
 func (c *codeAreaComponent) Render() co.Instance {
-	var contentSize sprec.Vec2
-	for _, line := range c.lines {
-		textSize := c.font.TextSize(string(line), c.fontSize)
-		contentSize.X = max(contentSize.X, textSize.X)
-		contentSize.Y += textSize.Y
+	padding := ui.Spacing{
+		Left:   codeAreaPaddingLeft,
+		Right:  codeAreaPaddingRight,
+		Top:    codeAreaPaddingTop,
+		Bottom: codeAreaPaddingBottom,
 	}
+	textPadding := codeAreaTextPaddingLeft + codeAreaTextPaddingRight
+
 	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ElementData{
 			Essence:   c,
 			Focusable: opt.V(true),
 			IdealSize: opt.V(ui.Size{
-				Width:  int(codeAreaLinesWidth + codeAreaLinesPadding + contentSize.X),
-				Height: int(contentSize.Y),
+				Width:  c.textWidth + padding.Horizontal() + textPadding + codeAreaRulerWidth,
+				Height: c.textHeight + padding.Vertical(),
 			}),
 		})
 	})
 }
 
-func (c *codeAreaComponent) refreshTextSize() {
-	var textSize sprec.Vec2
-	for _, line := range c.lines {
-		lineSize := c.font.TextSize(string(line), c.fontSize)
-		textSize.X = max(textSize.X, lineSize.X)
-		textSize.Y += lineSize.Y
+func (c *codeAreaComponent) OnUndo(element *ui.Element) bool {
+	canUndo := c.history.CanUndo()
+	if canUndo {
+		c.history.Undo()
+		c.notifyChanged()
 	}
-	c.textWidth = int(math.Ceil(float64(textSize.X)))
-	c.textHeight = int(math.Ceil(float64(textSize.Y)))
+	return canUndo
 }
 
-func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
-	bounds := element.ContentBounds()
-	availableTextWidth := bounds.Width - 110
-	availableTextHeight := bounds.Height
-	c.maxOffsetX = max(c.textWidth-availableTextWidth, 0)
-	c.maxOffsetY = max(c.textHeight-availableTextHeight, 0)
-	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
+func (c *codeAreaComponent) OnRedo(element *ui.Element) bool {
+	canRedo := c.history.CanRedo()
+	if canRedo {
+		c.history.Redo()
+		c.notifyChanged()
+	}
+	return canRedo
+}
+
+func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
+	switch event.Action {
+	case ui.ClipboardActionCut:
+		if c.isReadOnly {
+			return false
+		}
+		if c.hasSelection() {
+			// TODO
+			// 		text := string(c.selectedText())
+			// 		element.Window().RequestCopy(text)
+			// 		c.history.Do(c.changeDeleteSelection())
+			c.notifyChanged()
+		}
+		return true
+
+	case ui.ClipboardActionCopy:
+		if c.hasSelection() {
+			text := strings.Join(gog.Map(c.selectedText(), lineToText), ",")
+			element.Window().RequestCopy(text)
+		}
+		return true
+
+	case ui.ClipboardActionPaste:
+		if c.isReadOnly {
+			return false
+		}
+		// TODO
+		// 	if c.hasSelection() {
+		// 		c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
+		// 	} else {
+		// 		c.history.Do(c.changeAppendText([]rune(event.Text)))
+		// 	}
+		c.notifyChanged()
+		return true
+
+	default:
+		return false
+	}
 }
 
 func (c *codeAreaComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
@@ -250,81 +301,6 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	}
 }
 
-func (c *codeAreaComponent) OnUndo(element *ui.Element) bool {
-	canUndo := c.history.CanUndo()
-	if canUndo {
-		c.history.Undo()
-		c.notifyChanged()
-	}
-	return canUndo
-}
-
-func (c *codeAreaComponent) OnRedo(element *ui.Element) bool {
-	canRedo := c.history.CanRedo()
-	if canRedo {
-		c.history.Redo()
-		c.notifyChanged()
-	}
-	return canRedo
-}
-
-func runesToString(input []rune) string {
-	return string(input)
-}
-
-func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.ClipboardEvent) bool {
-	switch event.Action {
-	case ui.ClipboardActionCut:
-		if c.isReadOnly {
-			return false
-		}
-		if c.hasSelection() {
-			// 		text := string(c.selectedText())
-			// 		element.Window().RequestCopy(text)
-			// 		c.history.Do(c.changeDeleteSelection())
-			c.notifyChanged()
-		}
-		return true
-
-	case ui.ClipboardActionCopy:
-		if c.hasSelection() {
-			text := strings.Join(gog.Map(c.selectedText(), runesToString), ",")
-			element.Window().RequestCopy(text)
-		}
-		return true
-
-	case ui.ClipboardActionPaste:
-		if c.isReadOnly {
-			return false
-		}
-		// 	if c.hasSelection() {
-		// 		c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
-		// 	} else {
-		// 		c.history.Do(c.changeAppendText([]rune(event.Text)))
-		// 	}
-		c.notifyChanged()
-		return true
-
-	default:
-		return false
-	}
-}
-
-func (c *codeAreaComponent) selectedText() [][]rune {
-	selection := c.selection()
-	if !selection.Valid() {
-		return [][]rune{}
-	}
-
-	var result [][]rune
-	for row := selection.FromRow; row <= selection.ToRow; row++ {
-		line := c.lines[row]
-		fromColumn, toColumn := selection.ColumnSpan(row, len(line))
-		result = append(result, slices.Clone(line[fromColumn:toColumn]))
-	}
-	return result
-}
-
 func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	switch event.Action {
 	case ui.KeyboardActionDown, ui.KeyboardActionRepeat:
@@ -351,13 +327,12 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 	case ui.MouseActionScroll:
 		if event.Modifiers.Contains(ui.KeyModifierShift) && (event.ScrollX == 0) {
 			c.offsetX -= event.ScrollY
-			c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 		} else {
 			c.offsetX -= event.ScrollX
-			c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 			c.offsetY -= event.ScrollY
-			c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
 		}
+		c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+		c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
 		element.Invalidate()
 		return true
 
@@ -374,7 +349,7 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 		element.Invalidate()
 		return true
 
-	case ui.MouseActionMove: // TODO: Use dragging event
+	case ui.MouseActionMove:
 		if c.isDragging {
 			c.cursorRow = c.findCursorRow(element, event.Y)
 			c.cursorColumn = c.findCursorColumn(element, event.X)
@@ -399,6 +374,42 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 	}
 }
 
+func (c *codeAreaComponent) refreshTextSize() {
+	var textSize sprec.Vec2
+	for _, line := range c.lines {
+		lineSize := c.font.TextSize(string(line), c.fontSize)
+		textSize.X = max(textSize.X, lineSize.X)
+		textSize.Y += lineSize.Y
+	}
+	c.textWidth = int(math.Ceil(float64(textSize.X)))
+	c.textHeight = int(math.Ceil(float64(textSize.Y)))
+}
+
+func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
+	bounds := element.ContentBounds()
+	availableTextWidth := bounds.Width - 110
+	availableTextHeight := bounds.Height
+	c.maxOffsetX = max(c.textWidth-availableTextWidth, 0)
+	c.maxOffsetY = max(c.textHeight-availableTextHeight, 0)
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
+}
+
+func (c *codeAreaComponent) selectedText() [][]rune {
+	selection := c.selection()
+	if !selection.Valid() {
+		return [][]rune{}
+	}
+
+	var result [][]rune
+	for row := selection.FromRow; row <= selection.ToRow; row++ {
+		line := c.lines[row]
+		fromColumn, toColumn := selection.ColumnSpan(row, len(line))
+		result = append(result, slices.Clone(line[fromColumn:toColumn]))
+	}
+	return result
+}
+
 func (c *codeAreaComponent) findCursorRow(element *ui.Element, y int) int {
 	y -= element.Padding().Top - int(c.offsetY)
 
@@ -415,7 +426,7 @@ func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
 
 	column := 1
 	offset := float32(0.0)
-	iterator := c.font.TextIterator(string(c.lines[c.cursorRow]), c.fontSize)
+	iterator := c.font.LineIterator(c.lines[c.cursorRow], c.fontSize)
 	for iterator.Next() {
 		character := iterator.Character()
 		offset += character.Kern + character.Width
@@ -590,7 +601,6 @@ func (c *codeAreaComponent) selectAll() {
 	c.selectorColumn = 0
 	c.cursorRow = len(c.lines) - 1
 	c.cursorColumn = len(c.lines[c.cursorRow])
-	c.cursorVirtualColumn = c.cursorColumn
 }
 
 func (c *codeAreaComponent) scrollUp() {
@@ -613,10 +623,6 @@ func (c *codeAreaComponent) scrollRight() {
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
-func (c *codeAreaComponent) trackVirtualColumn() {
-	c.cursorVirtualColumn = c.cursorColumn
-}
-
 func (c *codeAreaComponent) resetSelector() {
 	c.selectorRow = c.cursorRow
 	c.selectorColumn = c.cursorColumn
@@ -625,7 +631,6 @@ func (c *codeAreaComponent) resetSelector() {
 func (c *codeAreaComponent) moveCursorUp() {
 	if c.cursorRow > 0 {
 		c.cursorRow--
-		c.cursorColumn = c.cursorVirtualColumn
 		if c.cursorColumn > len(c.lines[c.cursorRow]) {
 			c.cursorColumn = len(c.lines[c.cursorRow])
 		}
@@ -637,7 +642,6 @@ func (c *codeAreaComponent) moveCursorUp() {
 func (c *codeAreaComponent) moveCursorDown() {
 	if c.cursorRow < len(c.lines)-1 {
 		c.cursorRow++
-		c.cursorColumn = c.cursorVirtualColumn
 		if c.cursorColumn > len(c.lines[c.cursorRow]) {
 			c.cursorColumn = len(c.lines[c.cursorRow])
 		}
@@ -655,7 +659,6 @@ func (c *codeAreaComponent) moveCursorLeft() {
 			c.moveCursorToEndOfLine()
 		}
 	}
-	c.trackVirtualColumn()
 }
 
 func (c *codeAreaComponent) moveCursorRight() {
@@ -667,17 +670,14 @@ func (c *codeAreaComponent) moveCursorRight() {
 			c.moveCursorToStartOfLine()
 		}
 	}
-	c.trackVirtualColumn()
 }
 
 func (c *codeAreaComponent) moveCursorToStartOfLine() {
 	c.cursorColumn = 0
-	c.trackVirtualColumn()
 }
 
 func (c *codeAreaComponent) moveCursorToEndOfLine() {
 	c.cursorColumn = len(c.lines[c.cursorRow])
-	c.trackVirtualColumn()
 }
 
 func (c *codeAreaComponent) appendCharacter(ch rune) {
@@ -690,7 +690,6 @@ func (c *codeAreaComponent) appendCharacter(ch rune) {
 		postCursorLine,
 	)
 	c.cursorColumn++
-	c.trackVirtualColumn()
 }
 
 func (c *codeAreaComponent) breakLine() {
@@ -709,7 +708,6 @@ func (c *codeAreaComponent) eraseLeft() {
 		line = slices.Delete(line, c.cursorColumn-1, c.cursorColumn)
 		c.lines[c.cursorRow] = line
 		c.cursorColumn--
-		c.trackVirtualColumn()
 	} else {
 		if c.cursorRow > 0 {
 			movedRow := c.cursorRow
@@ -768,8 +766,8 @@ func (c *codeAreaComponent) selection() selectionSpan {
 }
 
 func (c *codeAreaComponent) notifyChanged() {
+	c.refreshTextSize()
 	if c.onChange != nil {
-		c.refreshTextSize()
 		c.onChange(string(c.constructText()))
 	}
 }
@@ -803,34 +801,12 @@ func (s selectionSpan) ColumnSpan(row, lineLength int) (int, int) {
 	}
 }
 
-type codeAreaChange struct {
-	when    time.Time
-	forward []func()
-	reverse []func()
+func splitLines(text string) [][]rune {
+	return gog.Map(strings.Split(text, "\n"), func(line string) []rune {
+		return []rune(line)
+	})
 }
 
-func (c *codeAreaChange) Apply() {
-	for _, action := range c.forward {
-		action()
-	}
-}
-
-func (c *codeAreaChange) Revert() {
-	for _, action := range c.reverse {
-		action()
-	}
-}
-
-func (c *codeAreaChange) Extend(other state.Change) bool {
-	otherChange, ok := other.(*codeAreaChange)
-	if !ok {
-		return false
-	}
-	if otherChange.when.Sub(c.when) > 500*time.Millisecond {
-		return false
-	}
-	c.forward = append(c.forward, otherChange.forward...)
-	c.reverse = append(otherChange.reverse, c.reverse...)
-	c.when = otherChange.when
-	return true
+func lineToText(input []rune) string {
+	return string(input)
 }

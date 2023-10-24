@@ -64,8 +64,8 @@ type editboxComponent struct {
 	onChange   func(string)
 	onSubmit   func(string)
 
-	textHeight int
 	textWidth  int
+	textHeight int
 
 	offsetX    int
 	maxOffsetX int
