@@ -605,7 +605,7 @@ func (c *editBoxComponent) moveCursorToEndOfLine() {
 
 func (c *editBoxComponent) changeAppendText(text []rune) state.Change {
 	lng := len(text)
-	return &editboxChange{
+	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
 			c.actionInsertText(c.cursorColumn, text),
@@ -624,7 +624,7 @@ func (c *editBoxComponent) changeReplaceSelection(text []rune) state.Change {
 	fromColumn := min(c.cursorColumn, c.selectorColumn)
 	toColumn := max(c.cursorColumn, c.selectorColumn)
 	selectedText := slices.Clone(c.line[fromColumn:toColumn])
-	return &editboxChange{
+	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
 			c.actionDeleteText(fromColumn, toColumn),
@@ -645,7 +645,7 @@ func (c *editBoxComponent) changeDeleteSelection() state.Change {
 	fromColumn := min(c.cursorColumn, c.selectorColumn)
 	toColumn := max(c.cursorColumn, c.selectorColumn)
 	selectedText := slices.Clone(c.line[fromColumn:toColumn])
-	return &editboxChange{
+	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
 			c.actionRelocateSelector(fromColumn),
@@ -662,10 +662,10 @@ func (c *editBoxComponent) changeDeleteSelection() state.Change {
 
 func (c *editBoxComponent) changeDeleteCharacterLeft() state.Change {
 	if c.cursorColumn <= 0 {
-		return emptyEditBoxChange()
+		return emptyTextTypeChange()
 	}
 	deletedCharacter := c.line[c.cursorColumn-1]
-	return &editboxChange{
+	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
 			c.actionRelocateCursor(c.cursorColumn - 1),
@@ -682,10 +682,10 @@ func (c *editBoxComponent) changeDeleteCharacterLeft() state.Change {
 
 func (c *editBoxComponent) changeDeleteCharacterRight() state.Change {
 	if c.cursorColumn >= len(c.line) {
-		return emptyEditBoxChange()
+		return emptyTextTypeChange()
 	}
 	deletedCharacter := c.line[c.cursorColumn]
-	return &editboxChange{
+	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
 			c.actionRelocateCursor(c.cursorColumn),
@@ -774,44 +774,6 @@ func (c *editBoxComponent) notifySubmitted() {
 	if c.onSubmit != nil {
 		c.onSubmit(string(c.line))
 	}
-}
-
-func emptyEditBoxChange() *editboxChange {
-	return &editboxChange{
-		when: time.Now(),
-	}
-}
-
-type editboxChange struct {
-	when    time.Time
-	forward []func()
-	reverse []func()
-}
-
-func (c *editboxChange) Apply() {
-	for _, action := range c.forward {
-		action()
-	}
-}
-
-func (c *editboxChange) Revert() {
-	for _, action := range c.reverse {
-		action()
-	}
-}
-
-func (c *editboxChange) Extend(other state.Change) bool {
-	otherChange, ok := other.(*editboxChange)
-	if !ok {
-		return false
-	}
-	if otherChange.when.Sub(c.when) > 500*time.Millisecond {
-		return false
-	}
-	c.forward = append(c.forward, otherChange.forward...)
-	c.reverse = append(otherChange.reverse, c.reverse...)
-	c.when = otherChange.when
-	return true
 }
 
 func abs(a int) int {
