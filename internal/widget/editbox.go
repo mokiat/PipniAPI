@@ -67,8 +67,8 @@ type editboxComponent struct {
 	textWidth  int
 	textHeight int
 
-	offsetX    int
-	maxOffsetX int
+	offsetX    float32
+	maxOffsetX float32
 
 	isDragging bool
 }
@@ -758,7 +758,7 @@ func (c *editboxComponent) refreshTextSize() {
 func (c *editboxComponent) refreshScrollBounds(element *ui.Element) {
 	bounds := element.ContentBounds()
 	availableTextWidth := bounds.Width - editboxTextPaddingLeft - editboxTextPaddingRight
-	c.maxOffsetX = max(c.textWidth-availableTextWidth, 0)
+	c.maxOffsetX = float32(max(c.textWidth-availableTextWidth, 0))
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
