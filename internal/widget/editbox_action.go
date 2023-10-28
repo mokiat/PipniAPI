@@ -2,31 +2,36 @@ package widget
 
 import (
 	"github.com/mokiat/gog"
+	"github.com/mokiat/lacking/ui/state"
 	"golang.org/x/exp/slices"
 )
 
-func (c *editboxComponent) createActionMoveCursor(column int) func() {
+func (c *editboxComponent) createActionMoveCursor(column int) state.Action {
 	return func() {
 		c.cursorColumn = column
 	}
 }
 
-func (c *editboxComponent) createActionMoveSelector(column int) func() {
+func (c *editboxComponent) createActionMoveSelector(column int) state.Action {
 	return func() {
 		c.selectorColumn = column
 	}
 }
 
-func (c *editboxComponent) createActionInsertSegment(column int, segment []rune) func() {
+func (c *editboxComponent) createActionInsertSegment(column int, segment []rune) state.Action {
 	return func() {
-		prefix := c.line[:column]
-		suffix := c.line[column:]
-		c.line = gog.Concat(prefix, segment, suffix)
+		if len(segment) > 0 {
+			prefix := c.line[:column]
+			suffix := c.line[column:]
+			c.line = gog.Concat(prefix, segment, suffix)
+		}
 	}
 }
 
-func (c *editboxComponent) createActionDeleteSegment(fromColumn, toColumn int) func() {
+func (c *editboxComponent) createActionDeleteSegment(fromColumn, toColumn int) state.Action {
 	return func() {
-		c.line = slices.Delete(c.line, fromColumn, toColumn)
+		if fromColumn < toColumn {
+			c.line = slices.Delete(c.line, fromColumn, toColumn)
+		}
 	}
 }
