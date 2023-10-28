@@ -10,22 +10,22 @@ import (
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/state"
 	"github.com/mokiat/lacking/ui/std"
-	"golang.org/x/exp/slices"
 )
 
 const (
-	editboxHistoryCapacity  = 100
-	editboxPaddingLeft      = 10
-	editboxPaddingRight     = 10
-	editboxPaddingTop       = 5
-	editboxPaddingBottom    = 5
-	editboxTextPaddingLeft  = 2
-	editboxTextPaddingRight = 2
-	editboxCursorWidth      = float32(1.0)
-	editboxBorderSize       = float32(2.0)
-	editboxBorderRadius     = float32(8.0)
-	editboxKeyScrollSpeed   = 20
-	editboxFontSize         = float32(18.0)
+	editboxHistoryCapacity            = 100
+	editboxPaddingLeft                = 10
+	editboxPaddingRight               = 10
+	editboxPaddingTop                 = 5
+	editboxPaddingBottom              = 5
+	editboxTextPaddingLeft            = 2
+	editboxTextPaddingRight           = 2
+	editboxCursorWidth                = float32(1.0)
+	editboxBorderSize                 = float32(2.0)
+	editboxBorderRadius               = float32(8.0)
+	editboxKeyScrollSpeed             = 20
+	editboxFontSize                   = float32(18.0)
+	editboxChangeAccumulationDuration = 500 * time.Millisecond
 )
 
 var EditBox = co.Define(&editboxComponent{})
@@ -134,7 +134,7 @@ func (c *editboxComponent) OnUndo(element *ui.Element) bool {
 	canUndo := c.history.CanUndo()
 	if canUndo {
 		c.history.Undo()
-		c.notifyChanged()
+		c.handleChanged()
 	}
 	return canUndo
 }
@@ -143,7 +143,7 @@ func (c *editboxComponent) OnRedo(element *ui.Element) bool {
 	canRedo := c.history.CanRedo()
 	if canRedo {
 		c.history.Redo()
-		c.notifyChanged()
+		c.handleChanged()
 	}
 	return canRedo
 }
@@ -157,8 +157,8 @@ func (c *editboxComponent) OnClipboardEvent(element *ui.Element, event ui.Clipbo
 		if c.hasSelection() {
 			text := string(c.selectedSegment())
 			element.Window().RequestCopy(text)
-			c.history.Do(c.changeDeleteSelection())
-			c.notifyChanged()
+			c.applyChange(c.createChangeDeleteSelection())
+			c.handleChanged()
 		}
 		return true
 
@@ -174,11 +174,11 @@ func (c *editboxComponent) OnClipboardEvent(element *ui.Element, event ui.Clipbo
 			return false
 		}
 		if c.hasSelection() {
-			c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
+			c.applyChange(c.createChangeReplaceSelection([]rune(event.Text)))
 		} else {
-			c.history.Do(c.changeAppendText([]rune(event.Text)))
+			c.applyChange(c.createChangeInsertSegment([]rune(event.Text)))
 		}
-		c.notifyChanged()
+		c.handleChanged()
 		return true
 
 	default:
@@ -398,11 +398,11 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 			return false
 		}
 		if c.hasSelection() {
-			c.history.Do(c.changeDeleteSelection())
+			c.applyChange(c.createChangeDeleteSelection())
 		} else {
-			c.history.Do(c.changeDeleteCharacterLeft())
+			c.applyChange(c.createChangeDeleteCharacterLeft())
 		}
-		c.notifyChanged()
+		c.handleChanged()
 		return true
 
 	case ui.KeyCodeDelete:
@@ -410,18 +410,18 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 			return false
 		}
 		if c.hasSelection() {
-			c.history.Do(c.changeDeleteSelection())
+			c.applyChange(c.createChangeDeleteSelection())
 		} else {
-			c.history.Do(c.changeDeleteCharacterRight())
+			c.applyChange(c.createChangeDeleteCharacterRight())
 		}
-		c.notifyChanged()
+		c.handleChanged()
 		return true
 
 	case ui.KeyCodeEnter:
 		if c.isReadOnly {
 			return false
 		}
-		c.notifySubmitted()
+		c.handleSubmitted()
 		return true
 
 	case ui.KeyCodeTab:
@@ -437,111 +437,18 @@ func (c *editboxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 		return false
 	}
 	if c.hasSelection() {
-		c.history.Do(c.changeReplaceSelection([]rune{event.Rune}))
+		c.applyChange(c.createChangeReplaceSelection([]rune{event.Rune}))
 	} else {
-		c.history.Do(c.changeAppendText([]rune{event.Rune}))
+		c.applyChange(c.createChangeInsertSegment([]rune{event.Rune}))
 	}
-	c.notifyChanged()
+	c.handleChanged()
 	return true
 }
 
-func (c *editboxComponent) changeAppendText(text []rune) state.Change {
-	lng := len(text)
-	return &textTypeChange{
-		when: time.Now(),
-		forward: []func(){
-			c.createActionInsertSegment(c.cursorColumn, text),
-			c.createActionMoveCursor(c.cursorColumn + lng),
-			c.createActionMoveSelector(c.cursorColumn + lng),
-		},
-		reverse: []func(){
-			c.createActionMoveSelector(c.selectorColumn),
-			c.createActionMoveCursor(c.cursorColumn),
-			c.createActionDeleteSegment(c.cursorColumn, c.cursorColumn+lng),
-		},
-	}
-}
-
-func (c *editboxComponent) changeReplaceSelection(text []rune) state.Change {
-	fromColumn, toColumn := c.selectedColumns()
-	selectedText := slices.Clone(c.line[fromColumn:toColumn])
-	return &textTypeChange{
-		when: time.Now(),
-		forward: []func(){
-			c.createActionDeleteSegment(fromColumn, toColumn),
-			c.createActionInsertSegment(fromColumn, text),
-			c.createActionMoveCursor(fromColumn + len(text)),
-			c.createActionMoveSelector(fromColumn + len(text)),
-		},
-		reverse: []func(){
-			c.createActionMoveCursor(c.cursorColumn),
-			c.createActionMoveSelector(c.selectorColumn),
-			c.createActionDeleteSegment(fromColumn, fromColumn+len(text)),
-			c.createActionInsertSegment(fromColumn, selectedText),
-		},
-	}
-}
-
-func (c *editboxComponent) changeDeleteSelection() state.Change {
-	fromColumn, toColumn := c.selectedColumns()
-	selectedText := slices.Clone(c.line[fromColumn:toColumn])
-	return &textTypeChange{
-		when: time.Now(),
-		forward: []func(){
-			c.createActionMoveSelector(fromColumn),
-			c.createActionMoveCursor(fromColumn),
-			c.createActionDeleteSegment(fromColumn, toColumn),
-		},
-		reverse: []func(){
-			c.createActionInsertSegment(fromColumn, selectedText),
-			c.createActionMoveCursor(c.cursorColumn),
-			c.createActionMoveSelector(c.selectorColumn),
-		},
-	}
-}
-
-func (c *editboxComponent) changeDeleteCharacterLeft() state.Change {
-	if c.cursorColumn == 0 {
-		return emptyTextTypeChange()
-	}
-	deletedCharacter := c.line[c.cursorColumn-1]
-	return &textTypeChange{
-		when: time.Now(),
-		forward: []func(){
-			c.createActionMoveCursor(c.cursorColumn - 1),
-			c.createActionMoveSelector(c.cursorColumn - 1),
-			c.createActionDeleteSegment(c.cursorColumn-1, c.cursorColumn),
-		},
-		reverse: []func(){
-			c.createActionInsertSegment(c.cursorColumn-1, []rune{deletedCharacter}),
-			c.createActionMoveSelector(c.selectorColumn),
-			c.createActionMoveCursor(c.cursorColumn),
-		},
-	}
-}
-
-func (c *editboxComponent) changeDeleteCharacterRight() state.Change {
-	if c.cursorColumn >= len(c.line) {
-		return emptyTextTypeChange()
-	}
-	deletedCharacter := c.line[c.cursorColumn]
-	return &textTypeChange{
-		when: time.Now(),
-		forward: []func(){
-			c.createActionMoveCursor(c.cursorColumn),
-			c.createActionMoveSelector(c.cursorColumn),
-			c.createActionDeleteSegment(c.cursorColumn, c.cursorColumn+1),
-		},
-		reverse: []func(){
-			c.createActionInsertSegment(c.cursorColumn, []rune{deletedCharacter}),
-			c.createActionMoveSelector(c.selectorColumn),
-			c.createActionMoveCursor(c.cursorColumn),
-		},
-	}
-}
-
 func (c *editboxComponent) findCursorColumn(element *ui.Element, x int) int {
-	x -= element.Padding().Left - int(c.offsetX) + editboxTextPaddingLeft
+	x += int(c.offsetX)
+	x -= element.Padding().Left
+	x -= editboxTextPaddingLeft
 
 	bestColumn := 0
 	bestDistance := sprec.Abs(float32(x))
@@ -573,14 +480,14 @@ func (c *editboxComponent) refreshScrollBounds(element *ui.Element) {
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 }
 
-func (c *editboxComponent) notifyChanged() {
+func (c *editboxComponent) handleChanged() {
 	c.refreshTextSize()
 	if c.onChange != nil {
 		c.onChange(string(c.line))
 	}
 }
 
-func (c *editboxComponent) notifySubmitted() {
+func (c *editboxComponent) handleSubmitted() {
 	if c.onSubmit != nil {
 		c.onSubmit(string(c.line))
 	}

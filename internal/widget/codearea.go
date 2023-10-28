@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
@@ -17,19 +18,20 @@ import (
 )
 
 const (
-	codeAreaHistoryCapacity   = 100
-	codeAreaPaddingLeft       = 2
-	codeAreaPaddingRight      = 2
-	codeAreaPaddingTop        = 2
-	codeAreaPaddingBottom     = 2
-	codeAreaTextPaddingLeft   = 5
-	codeAreaTextPaddingRight  = 5
-	codeAreaRulerPaddingLeft  = 5
-	codeAreaRulerPaddingRight = 5
-	codeAreaCursorWidth       = float32(1.0)
-	codeAreaBorderSize        = float32(2.0)
-	codeAreaKeyScrollSpeed    = 20
-	codeAreaFontSize          = float32(18.0)
+	codeAreaHistoryCapacity            = 100
+	codeAreaPaddingLeft                = 2
+	codeAreaPaddingRight               = 2
+	codeAreaPaddingTop                 = 2
+	codeAreaPaddingBottom              = 2
+	codeAreaTextPaddingLeft            = 5
+	codeAreaTextPaddingRight           = 5
+	codeAreaRulerPaddingLeft           = 5
+	codeAreaRulerPaddingRight          = 5
+	codeAreaCursorWidth                = float32(1.0)
+	codeAreaBorderSize                 = float32(2.0)
+	codeAreaKeyScrollSpeed             = 20
+	codeAreaFontSize                   = float32(18.0)
+	codeAreaChangeAccumulationDuration = 500 * time.Millisecond
 )
 
 var CodeArea = co.Define(&codeAreaComponent{})
@@ -551,7 +553,7 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 
 func (c *codeAreaComponent) changeAppendText(lines [][]rune) state.Change {
 	if len(lines) == 0 {
-		return emptyTextTypeChange() // TODO: Return nil
+		return nil
 	}
 	newCursorRow := c.cursorRow + len(lines) - 1
 	newCursorColumn := c.cursorColumn + len(lines[0])
@@ -574,7 +576,7 @@ func (c *codeAreaComponent) changeAppendText(lines [][]rune) state.Change {
 }
 
 func (c *codeAreaComponent) createChange(forward, reverse []state.Action) state.Change {
-	return state.AccumActionChange(forward, reverse, textTypeAccumulationDuration)
+	return state.AccumActionChange(forward, reverse, codeAreaChangeAccumulationDuration)
 }
 
 func (c *codeAreaComponent) actionInsertText(row, column int, text []rune) func() {
