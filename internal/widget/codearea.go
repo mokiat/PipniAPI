@@ -92,7 +92,7 @@ func (c *codeAreaComponent) OnCreate() {
 
 	data := co.GetData[CodeAreaData](c.Properties())
 	c.isReadOnly = data.ReadOnly
-	c.lines = splitLines(data.Code)
+	c.lines = c.textToLines(data.Code)
 	c.refreshTextSize()
 }
 
@@ -104,7 +104,7 @@ func (c *codeAreaComponent) OnUpsert() {
 	}
 	if data.Code != c.constructText() {
 		c.history.Clear()
-		c.lines = splitLines(data.Code)
+		c.lines = c.textToLines(data.Code)
 		c.refreshTextSize()
 	}
 
@@ -141,7 +141,7 @@ func (c *codeAreaComponent) OnUndo(element *ui.Element) bool {
 	canUndo := c.history.CanUndo()
 	if canUndo {
 		c.history.Undo()
-		c.notifyChanged()
+		c.handleChanged()
 	}
 	return canUndo
 }
@@ -150,7 +150,7 @@ func (c *codeAreaComponent) OnRedo(element *ui.Element) bool {
 	canRedo := c.history.CanRedo()
 	if canRedo {
 		c.history.Redo()
-		c.notifyChanged()
+		c.handleChanged()
 	}
 	return canRedo
 }
@@ -165,14 +165,14 @@ func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.Clipb
 			// TODO
 			// 		text := string(c.selectedText())
 			// 		element.Window().RequestCopy(text)
-			// 		c.history.Do(c.changeDeleteSelection())
-			c.notifyChanged()
+			// 		c.applyChange(c.changeDeleteSelection())
+			c.handleChanged()
 		}
 		return true
 
 	case ui.ClipboardActionCopy:
 		if c.hasSelection() {
-			text := strings.Join(gog.Map(c.selectedLines(), lineToText), "\n")
+			text := c.linesToText(c.selectedLines())
 			element.Window().RequestCopy(text)
 		}
 		return true
@@ -182,14 +182,14 @@ func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.Clipb
 			return false
 		}
 
-		lines := splitLines(event.Text)
+		lines := c.textToLines(event.Text)
 		if c.hasSelection() {
 			// TODO
-			// 		c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
+			// 		c.applyChange(c.changeReplaceSelection([]rune(event.Text)))
 		} else {
-			c.history.Do(c.changeAppendText(lines))
+			c.applyChange(c.createChangeInsertLines(lines))
 		}
-		c.notifyChanged()
+		c.handleChanged()
 		return true
 
 	default:
@@ -499,7 +499,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if !extendSelection {
 			c.clearSelection()
 		}
-		c.notifyChanged()
+		c.handleChanged()
 		return true
 
 	case ui.KeyCodeDelete:
@@ -511,7 +511,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if !extendSelection {
 			c.clearSelection()
 		}
-		c.notifyChanged()
+		c.handleChanged()
 		return true
 
 	case ui.KeyCodeEnter:
@@ -522,7 +522,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if !extendSelection {
 			c.clearSelection()
 		}
-		c.notifyChanged()
+		c.handleChanged()
 		return true
 
 	case ui.KeyCodeTab:
@@ -533,7 +533,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if !extendSelection {
 			c.clearSelection()
 		}
-		c.notifyChanged()
+		c.handleChanged()
 		return true
 
 	default:
@@ -547,32 +547,8 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 	}
 	c.appendCharacter(event.Rune)
 	c.clearSelection()
-	c.notifyChanged()
+	c.handleChanged()
 	return true
-}
-
-func (c *codeAreaComponent) changeAppendText(lines [][]rune) state.Change {
-	if len(lines) == 0 {
-		return nil
-	}
-	newCursorRow := c.cursorRow + len(lines) - 1
-	newCursorColumn := c.cursorColumn + len(lines[0])
-	if lng := len(lines); lng > 1 {
-		newCursorColumn = len(lines[lng-1])
-	}
-	forward := []state.Action{
-		c.createActionInsertSegment(c.cursorRow, c.cursorColumn, lines[0]),
-		c.createActionInsertLines(c.cursorRow+1, lines[1:]),
-		c.createActionMoveCursor(newCursorRow, newCursorColumn),
-		c.createActionMoveSelector(newCursorRow, newCursorColumn),
-	}
-	reverse := []state.Action{
-		c.createActionMoveSelector(c.selectorRow, c.selectorColumn),
-		c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
-		c.createActionDeleteLines(c.cursorRow+1, c.cursorRow+len(lines)),
-		c.createActionDeleteSegment(c.cursorRow, c.cursorColumn, c.cursorColumn+len(lines[0])),
-	}
-	return c.createChange(forward, reverse)
 }
 
 func (c *codeAreaComponent) appendCharacter(ch rune) {
@@ -629,24 +605,24 @@ func (c *codeAreaComponent) eraseRight() {
 }
 
 func (c *codeAreaComponent) constructText() string {
-	return strings.Join(gog.Map(c.lines, func(line []rune) string {
+	return c.linesToText(c.lines)
+}
+
+func (c *codeAreaComponent) linesToText(lines [][]rune) string {
+	return strings.Join(gog.Map(lines, func(line []rune) string {
 		return string(line)
 	}), "\n")
 }
 
-func (c *codeAreaComponent) notifyChanged() {
-	c.refreshTextSize()
-	if c.onChange != nil {
-		c.onChange(string(c.constructText()))
-	}
-}
-
-func splitLines(text string) [][]rune {
+func (c *codeAreaComponent) textToLines(text string) [][]rune {
 	return gog.Map(strings.Split(text, "\n"), func(line string) []rune {
 		return []rune(line)
 	})
 }
 
-func lineToText(input []rune) string {
-	return string(input)
+func (c *codeAreaComponent) handleChanged() {
+	c.refreshTextSize()
+	if c.onChange != nil {
+		c.onChange(c.constructText())
+	}
 }
