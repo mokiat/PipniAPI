@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
-	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/gomath/sprec"
 	"github.com/mokiat/lacking/ui"
@@ -451,14 +450,14 @@ func (c *editboxComponent) changeAppendText(text []rune) state.Change {
 	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
-			c.actionInsertText(c.cursorColumn, text),
-			c.actionRelocateCursor(c.cursorColumn + lng),
-			c.actionRelocateSelector(c.cursorColumn + lng),
+			c.createActionInsertSegment(c.cursorColumn, text),
+			c.createActionMoveCursor(c.cursorColumn + lng),
+			c.createActionMoveSelector(c.cursorColumn + lng),
 		},
 		reverse: []func(){
-			c.actionRelocateSelector(c.selectorColumn),
-			c.actionRelocateCursor(c.cursorColumn),
-			c.actionDeleteText(c.cursorColumn, c.cursorColumn+lng),
+			c.createActionMoveSelector(c.selectorColumn),
+			c.createActionMoveCursor(c.cursorColumn),
+			c.createActionDeleteSegment(c.cursorColumn, c.cursorColumn+lng),
 		},
 	}
 }
@@ -469,16 +468,16 @@ func (c *editboxComponent) changeReplaceSelection(text []rune) state.Change {
 	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
-			c.actionDeleteText(fromColumn, toColumn),
-			c.actionInsertText(fromColumn, text),
-			c.actionRelocateCursor(fromColumn + len(text)),
-			c.actionRelocateSelector(fromColumn + len(text)),
+			c.createActionDeleteSegment(fromColumn, toColumn),
+			c.createActionInsertSegment(fromColumn, text),
+			c.createActionMoveCursor(fromColumn + len(text)),
+			c.createActionMoveSelector(fromColumn + len(text)),
 		},
 		reverse: []func(){
-			c.actionRelocateCursor(c.cursorColumn),
-			c.actionRelocateSelector(c.selectorColumn),
-			c.actionDeleteText(fromColumn, fromColumn+len(text)),
-			c.actionInsertText(fromColumn, selectedText),
+			c.createActionMoveCursor(c.cursorColumn),
+			c.createActionMoveSelector(c.selectorColumn),
+			c.createActionDeleteSegment(fromColumn, fromColumn+len(text)),
+			c.createActionInsertSegment(fromColumn, selectedText),
 		},
 	}
 }
@@ -489,14 +488,14 @@ func (c *editboxComponent) changeDeleteSelection() state.Change {
 	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
-			c.actionRelocateSelector(fromColumn),
-			c.actionRelocateCursor(fromColumn),
-			c.actionDeleteText(fromColumn, toColumn),
+			c.createActionMoveSelector(fromColumn),
+			c.createActionMoveCursor(fromColumn),
+			c.createActionDeleteSegment(fromColumn, toColumn),
 		},
 		reverse: []func(){
-			c.actionInsertText(fromColumn, selectedText),
-			c.actionRelocateCursor(c.cursorColumn),
-			c.actionRelocateSelector(c.selectorColumn),
+			c.createActionInsertSegment(fromColumn, selectedText),
+			c.createActionMoveCursor(c.cursorColumn),
+			c.createActionMoveSelector(c.selectorColumn),
 		},
 	}
 }
@@ -509,14 +508,14 @@ func (c *editboxComponent) changeDeleteCharacterLeft() state.Change {
 	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
-			c.actionRelocateCursor(c.cursorColumn - 1),
-			c.actionRelocateSelector(c.cursorColumn - 1),
-			c.actionDeleteText(c.cursorColumn-1, c.cursorColumn),
+			c.createActionMoveCursor(c.cursorColumn - 1),
+			c.createActionMoveSelector(c.cursorColumn - 1),
+			c.createActionDeleteSegment(c.cursorColumn-1, c.cursorColumn),
 		},
 		reverse: []func(){
-			c.actionInsertText(c.cursorColumn-1, []rune{deletedCharacter}),
-			c.actionRelocateSelector(c.selectorColumn),
-			c.actionRelocateCursor(c.cursorColumn),
+			c.createActionInsertSegment(c.cursorColumn-1, []rune{deletedCharacter}),
+			c.createActionMoveSelector(c.selectorColumn),
+			c.createActionMoveCursor(c.cursorColumn),
 		},
 	}
 }
@@ -529,45 +528,15 @@ func (c *editboxComponent) changeDeleteCharacterRight() state.Change {
 	return &textTypeChange{
 		when: time.Now(),
 		forward: []func(){
-			c.actionRelocateCursor(c.cursorColumn),
-			c.actionRelocateSelector(c.cursorColumn),
-			c.actionDeleteText(c.cursorColumn, c.cursorColumn+1),
+			c.createActionMoveCursor(c.cursorColumn),
+			c.createActionMoveSelector(c.cursorColumn),
+			c.createActionDeleteSegment(c.cursorColumn, c.cursorColumn+1),
 		},
 		reverse: []func(){
-			c.actionInsertText(c.cursorColumn, []rune{deletedCharacter}),
-			c.actionRelocateSelector(c.selectorColumn),
-			c.actionRelocateCursor(c.cursorColumn),
+			c.createActionInsertSegment(c.cursorColumn, []rune{deletedCharacter}),
+			c.createActionMoveSelector(c.selectorColumn),
+			c.createActionMoveCursor(c.cursorColumn),
 		},
-	}
-}
-
-func (c *editboxComponent) actionInsertText(position int, text []rune) func() {
-	return func() {
-		preText := c.line[:position]
-		postText := c.line[position:]
-		c.line = gog.Concat(
-			preText,
-			text,
-			postText,
-		)
-	}
-}
-
-func (c *editboxComponent) actionDeleteText(fromPosition, toPosition int) func() {
-	return func() {
-		c.line = slices.Delete(c.line, fromPosition, toPosition)
-	}
-}
-
-func (c *editboxComponent) actionRelocateCursor(position int) func() {
-	return func() {
-		c.cursorColumn = position
-	}
-}
-
-func (c *editboxComponent) actionRelocateSelector(position int) func() {
-	return func() {
-		c.selectorColumn = position
 	}
 }
 
