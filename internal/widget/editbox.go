@@ -369,7 +369,7 @@ func (c *editboxComponent) drawText(element *ui.Element, canvas *ui.Canvas, boun
 	}
 
 	canvas.Reset()
-	canvas.FillText(string(visibleText), visibleTextPosition, ui.Typography{
+	canvas.FillTextLine(visibleText, visibleTextPosition, ui.Typography{
 		Font:  c.font,
 		Size:  c.fontSize,
 		Color: std.OnSurfaceColor,

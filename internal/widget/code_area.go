@@ -222,6 +222,79 @@ func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	canvas.Pop()
 }
 
+func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+	switch event.Action {
+	case ui.KeyboardActionDown, ui.KeyboardActionRepeat:
+		consumed := c.onKeyboardPressEvent(element, event)
+		if consumed {
+			element.Invalidate()
+		}
+		return consumed
+
+	case ui.KeyboardActionType:
+		consumed := c.onKeyboardTypeEvent(element, event)
+		if consumed {
+			element.Invalidate()
+		}
+		return consumed
+
+	default:
+		return false
+	}
+}
+
+func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
+	switch event.Action {
+	case ui.MouseActionScroll:
+		if event.Modifiers.Contains(ui.KeyModifierShift) && (event.ScrollX == 0) {
+			c.offsetX -= event.ScrollY
+		} else {
+			c.offsetX -= event.ScrollX
+			c.offsetY -= event.ScrollY
+		}
+		c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+		c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
+		element.Invalidate()
+		return true
+
+	case ui.MouseActionDown:
+		if event.Button != ui.MouseButtonLeft {
+			return false
+		}
+		c.isDragging = true
+		c.cursorRow = c.findCursorRow(element, event.Y)
+		c.cursorColumn = c.findCursorColumn(element, event.X)
+		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			c.resetSelector()
+		}
+		element.Invalidate()
+		return true
+
+	case ui.MouseActionMove:
+		if c.isDragging {
+			c.cursorRow = c.findCursorRow(element, event.Y)
+			c.cursorColumn = c.findCursorColumn(element, event.X)
+			element.Invalidate()
+		}
+		return true
+
+	case ui.MouseActionUp:
+		if event.Button != ui.MouseButtonLeft {
+			return false
+		}
+		if c.isDragging {
+			c.isDragging = false
+			c.cursorRow = c.findCursorRow(element, event.Y)
+			c.cursorColumn = c.findCursorColumn(element, event.X)
+			element.Invalidate()
+		}
+		return true
+
+	default:
+		return false
+	}
+}
+
 func (c *codeAreaComponent) drawFrame(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
 	canvas.Reset()
 	canvas.Rectangle(sprec.ZeroVec2(), bounds)
@@ -341,7 +414,7 @@ func (c *codeAreaComponent) drawText(element *ui.Element, canvas *ui.Canvas, bou
 				X: preVisibleTextWidth,
 			}
 			canvas.Reset()
-			canvas.FillText(string(visibleText), visibleTextPosition, ui.Typography{
+			canvas.FillTextLine(visibleText, visibleTextPosition, ui.Typography{
 				Font:  c.font,
 				Size:  c.fontSize,
 				Color: std.OnSurfaceColor,
@@ -406,7 +479,7 @@ func (c *codeAreaComponent) drawRuler(element *ui.Element, canvas *ui.Canvas, bo
 	})
 	for i := fromRow; i <= toRow; i++ {
 		canvas.Reset()
-		canvas.FillText(strconv.Itoa(i+1), sprec.ZeroVec2(), ui.Typography{
+		canvas.FillTextLine([]rune(strconv.Itoa(i+1)), sprec.ZeroVec2(), ui.Typography{
 			Font:  c.font,
 			Size:  c.fontSize,
 			Color: std.OnSurfaceColor,
@@ -443,79 +516,6 @@ func (c *codeAreaComponent) visibleColumns(row int, bounds sprec.Vec2) (int, int
 		column++
 	}
 	return minVisible, maxVisible
-}
-
-func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
-	switch event.Action {
-	case ui.KeyboardActionDown, ui.KeyboardActionRepeat:
-		consumed := c.onKeyboardPressEvent(element, event)
-		if consumed {
-			element.Invalidate()
-		}
-		return consumed
-
-	case ui.KeyboardActionType:
-		consumed := c.onKeyboardTypeEvent(element, event)
-		if consumed {
-			element.Invalidate()
-		}
-		return consumed
-
-	default:
-		return false
-	}
-}
-
-func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent) bool {
-	switch event.Action {
-	case ui.MouseActionScroll:
-		if event.Modifiers.Contains(ui.KeyModifierShift) && (event.ScrollX == 0) {
-			c.offsetX -= event.ScrollY
-		} else {
-			c.offsetX -= event.ScrollX
-			c.offsetY -= event.ScrollY
-		}
-		c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-		c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
-		element.Invalidate()
-		return true
-
-	case ui.MouseActionDown:
-		if event.Button != ui.MouseButtonLeft {
-			return false
-		}
-		c.isDragging = true
-		c.cursorRow = c.findCursorRow(element, event.Y)
-		c.cursorColumn = c.findCursorColumn(element, event.X)
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
-		}
-		element.Invalidate()
-		return true
-
-	case ui.MouseActionMove:
-		if c.isDragging {
-			c.cursorRow = c.findCursorRow(element, event.Y)
-			c.cursorColumn = c.findCursorColumn(element, event.X)
-			element.Invalidate()
-		}
-		return true
-
-	case ui.MouseActionUp:
-		if event.Button != ui.MouseButtonLeft {
-			return false
-		}
-		if c.isDragging {
-			c.isDragging = false
-			c.cursorRow = c.findCursorRow(element, event.Y)
-			c.cursorColumn = c.findCursorColumn(element, event.X)
-			element.Invalidate()
-		}
-		return true
-
-	default:
-		return false
-	}
 }
 
 func (c *codeAreaComponent) refreshTextSize() {
