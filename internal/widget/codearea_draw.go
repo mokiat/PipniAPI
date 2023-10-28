@@ -158,7 +158,7 @@ func (c *codeAreaComponent) drawCursor(element *ui.Element, canvas *ui.Canvas, b
 		Y: float32(c.cursorRow)*lineHeight - c.offsetY,
 	}
 	cursorSize := sprec.Vec2{
-		X: editboxCursorWidth,
+		X: codeAreaCursorWidth,
 		Y: lineHeight,
 	}
 	canvas.Reset()

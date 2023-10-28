@@ -6,6 +6,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/gomath/sprec"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/state"
@@ -445,44 +446,6 @@ func (c *editboxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 	return true
 }
 
-func (c *editboxComponent) scrollLeft() {
-	c.offsetX -= editboxKeyScrollSpeed
-	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-}
-
-func (c *editboxComponent) scrollRight() {
-	c.offsetX += editboxKeyScrollSpeed
-	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-}
-
-func (c *editboxComponent) moveCursorLeft() {
-	if c.cursorColumn > 0 {
-		c.cursorColumn--
-	}
-}
-
-func (c *editboxComponent) moveCursorRight() {
-	if c.cursorColumn < len(c.line) {
-		c.cursorColumn++
-	}
-}
-
-func (c *editboxComponent) moveCursorToSelectionStart() {
-	c.cursorColumn = min(c.cursorColumn, c.selectorColumn)
-}
-
-func (c *editboxComponent) moveCursorToSelectionEnd() {
-	c.cursorColumn = max(c.cursorColumn, c.selectorColumn)
-}
-
-func (c *editboxComponent) moveCursorToStartOfLine() {
-	c.cursorColumn = 0
-}
-
-func (c *editboxComponent) moveCursorToEndOfLine() {
-	c.cursorColumn = len(c.line)
-}
-
 func (c *editboxComponent) changeAppendText(text []rune) state.Change {
 	lng := len(text)
 	return &textTypeChange{
@@ -612,7 +575,7 @@ func (c *editboxComponent) findCursorColumn(element *ui.Element, x int) int {
 	x -= element.Padding().Left - int(c.offsetX) + editboxTextPaddingLeft
 
 	bestColumn := 0
-	bestDistance := abs(x)
+	bestDistance := sprec.Abs(float32(x))
 
 	column := 1
 	offset := float32(0.0)
@@ -620,7 +583,7 @@ func (c *editboxComponent) findCursorColumn(element *ui.Element, x int) int {
 	for iterator.Next() {
 		character := iterator.Character()
 		offset += character.Kern + character.Width
-		if distance := abs(x - int(offset)); distance < bestDistance {
+		if distance := sprec.Abs(float32(x) - offset); distance < bestDistance {
 			bestColumn = column
 			bestDistance = distance
 		}
@@ -652,8 +615,4 @@ func (c *editboxComponent) notifySubmitted() {
 	if c.onSubmit != nil {
 		c.onSubmit(string(c.line))
 	}
-}
-
-func abs(a int) int {
-	return max(a, -a)
 }

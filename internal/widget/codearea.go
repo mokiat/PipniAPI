@@ -2,11 +2,13 @@ package widget
 
 import (
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/gomath/sprec"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/state"
@@ -78,7 +80,7 @@ type codeAreaComponent struct {
 }
 
 func (c *codeAreaComponent) OnCreate() {
-	c.history = state.NewHistory(editboxHistoryCapacity)
+	c.history = state.NewHistory(codeAreaHistoryCapacity)
 
 	c.font = co.OpenFont(c.Scope(), "fonts/roboto-mono-regular.ttf")
 	c.fontSize = codeAreaFontSize
@@ -306,9 +308,9 @@ func (c *codeAreaComponent) refreshTextSize() {
 	c.textWidth = codeAreaTextPaddingLeft + int(math.Ceil(float64(txtWidth))) + codeAreaTextPaddingRight
 	c.textHeight = int(math.Ceil(float64(txtHeight)))
 
-	digitSize := c.font.LineWidth([]rune{'0'}, c.fontSize)
-	digitCount := countDigits(len(c.lines))
-	rulerTextWidth := int(math.Ceil(float64(digitSize)) * float64(digitCount))
+	rulerText := strconv.Itoa(len(c.lines))
+	digitSize := c.font.LineWidth([]rune(rulerText), c.fontSize)
+	rulerTextWidth := int(math.Ceil(float64(digitSize)))
 	c.rulerWidth = codeAreaRulerPaddingLeft + rulerTextWidth + codeAreaRulerPaddingRight
 }
 
@@ -340,7 +342,7 @@ func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
 	x -= codeAreaTextPaddingLeft
 
 	bestColumn := 0
-	bestDistance := abs(x)
+	bestDistance := sprec.Abs(float32(x))
 
 	column := 1
 	offset := float32(0.0)
@@ -348,7 +350,7 @@ func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
 	for iterator.Next() {
 		character := iterator.Character()
 		offset += character.Kern + character.Width
-		if distance := abs(x - int(offset)); distance < bestDistance {
+		if distance := sprec.Abs(float32(x) - offset); distance < bestDistance {
 			bestColumn = column
 			bestDistance = distance
 		}
@@ -359,6 +361,8 @@ func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
 
 func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	os := element.Window().Platform().OS()
+	extendSelection := event.Modifiers.Contains(ui.KeyModifierShift)
+
 	if shortcuts.IsClose(os, event) {
 		return false // propagate up
 	}
@@ -389,6 +393,42 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		c.selectAll()
 		return true
 	}
+	if shortcuts.IsJumpToLineStart(os, event) {
+		if !c.isReadOnly {
+			c.moveCursorToStartOfLine()
+			if !extendSelection {
+				c.clearSelection()
+			}
+		}
+		return true
+	}
+	if shortcuts.IsJumpToLineEnd(os, event) {
+		if !c.isReadOnly {
+			c.moveCursorToEndOfLine()
+			if !extendSelection {
+				c.clearSelection()
+			}
+		}
+		return true
+	}
+	if shortcuts.IsJumpToDocumentStart(os, event) {
+		if !c.isReadOnly {
+			c.moveCursorToStartOfDocument()
+			if !extendSelection {
+				c.clearSelection()
+			}
+		}
+		return true
+	}
+	if shortcuts.IsJumpToDocumentEnd(os, event) {
+		if !c.isReadOnly {
+			c.moveCursorToEndOfDocument()
+			if !extendSelection {
+				c.clearSelection()
+			}
+		}
+		return true
+	}
 
 	switch event.Code {
 
@@ -401,7 +441,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			c.scrollUp()
 		} else {
 			c.moveCursorUp()
-			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			if !extendSelection {
 				c.clearSelection()
 			}
 		}
@@ -412,7 +452,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			c.scrollDown()
 		} else {
 			c.moveCursorDown()
-			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			if !extendSelection {
 				c.clearSelection()
 			}
 		}
@@ -422,7 +462,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.isReadOnly {
 			c.scrollLeft()
 		} else {
-			if event.Modifiers.Contains(ui.KeyModifierShift) {
+			if extendSelection {
 				c.moveCursorLeft()
 			} else {
 				if !c.hasSelection() {
@@ -437,7 +477,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.isReadOnly {
 			c.scrollRight()
 		} else {
-			if event.Modifiers.Contains(ui.KeyModifierShift) {
+			if extendSelection {
 				c.moveCursorRight()
 			} else {
 				if !c.hasSelection() {
@@ -454,7 +494,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		}
 		// TODO: Check if selection
 		c.eraseLeft()
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+		if !extendSelection {
 			c.clearSelection()
 		}
 		c.notifyChanged()
@@ -466,7 +506,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		}
 		// TODO: Check if selection
 		c.eraseRight()
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+		if !extendSelection {
 			c.clearSelection()
 		}
 		c.notifyChanged()
@@ -477,7 +517,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			return false
 		}
 		c.breakLine()
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+		if !extendSelection {
 			c.clearSelection()
 		}
 		c.notifyChanged()
@@ -488,7 +528,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			return false
 		}
 		c.appendCharacter('\t')
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+		if !extendSelection {
 			c.clearSelection()
 		}
 		c.notifyChanged()
@@ -507,78 +547,6 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 	c.clearSelection()
 	c.notifyChanged()
 	return true
-}
-
-func (c *codeAreaComponent) scrollUp() {
-	c.offsetY -= 20
-	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
-}
-
-func (c *codeAreaComponent) scrollDown() {
-	c.offsetY += 20
-	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
-}
-
-func (c *codeAreaComponent) scrollLeft() {
-	c.offsetX -= 20
-	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-}
-
-func (c *codeAreaComponent) scrollRight() {
-	c.offsetX += 20
-	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-}
-
-func (c *codeAreaComponent) moveCursorUp() {
-	if c.cursorRow > 0 {
-		c.cursorRow--
-		if c.cursorColumn > len(c.lines[c.cursorRow]) {
-			c.cursorColumn = len(c.lines[c.cursorRow])
-		}
-	} else {
-		c.moveCursorToStartOfLine()
-	}
-}
-
-func (c *codeAreaComponent) moveCursorDown() {
-	if c.cursorRow < len(c.lines)-1 {
-		c.cursorRow++
-		if c.cursorColumn > len(c.lines[c.cursorRow]) {
-			c.cursorColumn = len(c.lines[c.cursorRow])
-		}
-	} else {
-		c.moveCursorToEndOfLine()
-	}
-}
-
-func (c *codeAreaComponent) moveCursorLeft() {
-	if c.cursorColumn > 0 {
-		c.cursorColumn--
-	} else {
-		if c.cursorRow > 0 {
-			c.moveCursorUp()
-			c.moveCursorToEndOfLine()
-		}
-	}
-}
-
-func (c *codeAreaComponent) moveCursorRight() {
-	if c.cursorColumn < len(c.lines[c.cursorRow]) {
-		c.cursorColumn++
-	} else {
-		if c.cursorRow < len(c.lines)-1 {
-			c.moveCursorDown()
-			c.moveCursorToStartOfLine()
-		}
-	}
-}
-
-func (c *codeAreaComponent) moveCursorToStartOfLine() {
-	c.cursorColumn = 0
-}
-
-func (c *codeAreaComponent) moveCursorToEndOfLine() {
-	c.cursorColumn = len(c.lines[c.cursorRow])
 }
 
 func (c *codeAreaComponent) changeAppendText(lines [][]rune) state.Change {
@@ -730,15 +698,4 @@ func splitLines(text string) [][]rune {
 
 func lineToText(input []rune) string {
 	return string(input)
-}
-
-func countDigits(number int) int {
-	number = abs(number)
-
-	result := 1
-	for number > 9 {
-		number /= 10
-		result++
-	}
-	return result
 }
