@@ -2,13 +2,11 @@ package widget
 
 import (
 	"math"
-	"strconv"
 	"strings"
 
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
-	"github.com/mokiat/gomath/sprec"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/state"
@@ -295,229 +293,6 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 	default:
 		return false
 	}
-}
-
-func (c *codeAreaComponent) drawFrame(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	canvas.Reset()
-	canvas.Rectangle(sprec.ZeroVec2(), bounds)
-	canvas.Fill(ui.Fill{
-		Color: std.SurfaceColor,
-	})
-}
-
-func (c *codeAreaComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	canvas.Reset()
-	if element.IsFocused() {
-		canvas.SetStrokeColor(std.SecondaryLightColor)
-	} else {
-		canvas.SetStrokeColor(std.PrimaryLightColor)
-	}
-	canvas.SetStrokeSize(codeAreaBorderSize)
-	canvas.Rectangle(sprec.ZeroVec2(), bounds)
-	canvas.Stroke()
-}
-
-func (c *codeAreaComponent) drawContent(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	rulerPosition := sprec.Vec2{}
-	rulerSize := sprec.Vec2{
-		X: float32(c.rulerWidth),
-		Y: bounds.Y,
-	}
-	canvas.Push()
-	canvas.ClipRect(rulerPosition, rulerSize)
-	canvas.Translate(rulerPosition)
-	c.drawRuler(element, canvas, rulerSize)
-	canvas.Pop()
-
-	editorPosition := sprec.Vec2{
-		X: rulerSize.X,
-		Y: 0.0,
-	}
-	editorSize := sprec.Vec2{
-		X: bounds.X - rulerSize.X,
-		Y: bounds.Y,
-	}
-	canvas.Push()
-	canvas.ClipRect(editorPosition, editorSize)
-	canvas.Translate(editorPosition)
-	c.drawSelection(element, canvas, editorSize)
-	c.drawText(element, canvas, editorSize)
-	c.drawCursor(element, canvas, editorSize)
-	canvas.Pop()
-}
-
-func (c *codeAreaComponent) drawSelection(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	if !c.hasSelection() || !element.IsFocused() {
-		return
-	}
-
-	span := c.selectionRange()
-	fromRow, toRow := c.visibleRows(bounds)
-	if span.FromRow > toRow || span.ToRow < fromRow {
-		return
-	}
-	fromRow = max(fromRow, span.FromRow)
-	toRow = min(toRow, span.ToRow)
-
-	lineHeight := c.font.LineHeight(c.fontSize)
-
-	canvas.Push()
-	canvas.Translate(sprec.Vec2{
-		X: float32(codeAreaTextPaddingLeft) - c.offsetX,
-		Y: float32(fromRow)*lineHeight - c.offsetY,
-	})
-	for i := fromRow; i <= toRow; i++ {
-		line := c.lines[i]
-		fromColumn, toColumn := span.ColumnSpan(i, len(line))
-		preSelectionWidth := c.font.LineWidth(line[:fromColumn], c.fontSize)
-		selectionWidth := c.font.LineWidth(line[fromColumn:toColumn], c.fontSize)
-
-		selectionPosition := sprec.Vec2{
-			X: preSelectionWidth,
-			Y: 0.0,
-		}
-		selectionSize := sprec.Vec2{
-			X: selectionWidth,
-			Y: lineHeight,
-		}
-		canvas.Reset()
-		canvas.Rectangle(selectionPosition, selectionSize)
-		canvas.Fill(ui.Fill{
-			Color: std.SecondaryLightColor,
-		})
-		canvas.Translate(sprec.Vec2{
-			Y: lineHeight,
-		})
-	}
-	canvas.Pop()
-}
-
-func (c *codeAreaComponent) drawText(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	fromRow, toRow := c.visibleRows(bounds)
-	if fromRow > toRow {
-		return
-	}
-
-	lineHeight := c.font.LineHeight(c.fontSize)
-
-	canvas.Push()
-	canvas.Translate(sprec.Vec2{
-		X: float32(codeAreaTextPaddingLeft) - c.offsetX,
-		Y: float32(fromRow)*lineHeight - c.offsetY,
-	})
-	for i := fromRow; i <= toRow; i++ {
-		fromColumn, toColumn := c.visibleColumns(i, bounds)
-		if fromColumn <= toColumn {
-			line := c.lines[i]
-			preVisibleText := line[:fromColumn]
-			preVisibleTextWidth := c.font.LineWidth(preVisibleText, c.fontSize)
-			visibleText := line[fromColumn : toColumn+1]
-			visibleTextPosition := sprec.Vec2{
-				X: preVisibleTextWidth,
-			}
-			canvas.Reset()
-			canvas.FillTextLine(visibleText, visibleTextPosition, ui.Typography{
-				Font:  c.font,
-				Size:  c.fontSize,
-				Color: std.OnSurfaceColor,
-			})
-		}
-		canvas.Translate(sprec.Vec2{
-			Y: lineHeight,
-		})
-	}
-	canvas.Pop()
-}
-
-func (c *codeAreaComponent) drawCursor(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	if c.isReadOnly || !element.IsFocused() {
-		return
-	}
-
-	fromRow, toRow := c.visibleRows(bounds)
-	if c.cursorRow < fromRow || toRow < c.cursorRow {
-		return
-	}
-
-	lineHeight := c.font.LineHeight(c.fontSize)
-	line := c.lines[c.cursorRow]
-	preCursorText := line[:c.cursorColumn]
-	preCursorTextWidth := c.font.LineWidth(preCursorText, c.fontSize)
-
-	cursorPosition := sprec.Vec2{
-		X: float32(codeAreaTextPaddingLeft) + preCursorTextWidth - c.offsetX,
-		Y: float32(c.cursorRow)*lineHeight - c.offsetY,
-	}
-	cursorSize := sprec.NewVec2(editboxCursorWidth, lineHeight)
-	if cursorPosition.X+cursorSize.X > 0.0 && cursorPosition.X < bounds.X {
-		canvas.Reset()
-		canvas.Rectangle(cursorPosition, cursorSize)
-		canvas.Fill(ui.Fill{
-			Color: std.PrimaryColor,
-		})
-	}
-}
-
-func (c *codeAreaComponent) drawRuler(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	canvas.Reset()
-	canvas.Rectangle(
-		sprec.ZeroVec2(),
-		bounds,
-	)
-	canvas.Fill(ui.Fill{
-		Color: std.PrimaryLightColor,
-	})
-
-	fromRow, toRow := c.visibleRows(bounds)
-	if fromRow > toRow {
-		return
-	}
-
-	lineHeight := c.font.LineHeight(c.fontSize)
-	canvas.Push()
-	canvas.Translate(sprec.Vec2{
-		X: codeAreaRulerPaddingLeft,
-		Y: float32(fromRow)*lineHeight - c.offsetY,
-	})
-	for i := fromRow; i <= toRow; i++ {
-		canvas.Reset()
-		canvas.FillTextLine([]rune(strconv.Itoa(i+1)), sprec.ZeroVec2(), ui.Typography{
-			Font:  c.font,
-			Size:  c.fontSize,
-			Color: std.OnSurfaceColor,
-		})
-		canvas.Translate(sprec.Vec2{
-			Y: lineHeight,
-		})
-	}
-	canvas.Pop()
-}
-
-func (c *codeAreaComponent) visibleRows(bounds sprec.Vec2) (int, int) {
-	lineHeight := c.font.LineHeight(c.fontSize)
-	fromRow := int(c.offsetY / lineHeight)
-	toRow := fromRow + int(bounds.Y/lineHeight) + 1
-	return max(fromRow, 0), min(toRow, len(c.lines)-1)
-}
-
-func (c *codeAreaComponent) visibleColumns(row int, bounds sprec.Vec2) (int, int) {
-	line := c.lines[row]
-	minVisible := len(line)
-	maxVisible := -1
-	offset := float32(codeAreaTextPaddingLeft) - c.offsetX
-	iterator := c.font.LineIterator(line, c.fontSize)
-	column := 0
-	for iterator.Next() {
-		character := iterator.Character()
-		characterWidth := character.Kern + character.Width
-		if offset+characterWidth > 0.0 && offset < bounds.X {
-			minVisible = min(minVisible, column)
-			maxVisible = max(maxVisible, column)
-		}
-		offset += characterWidth
-		column++
-	}
-	return minVisible, maxVisible
 }
 
 func (c *codeAreaComponent) refreshTextSize() {
@@ -977,21 +752,21 @@ func (c *codeAreaComponent) selectionRange() selectionSpan {
 	case c.cursorRow < c.selectorRow:
 		return selectionSpan{
 			FromRow:    c.cursorRow,
-			ToRow:      c.selectorRow,
+			ToRow:      c.selectorRow + 1,
 			FromColumn: c.cursorColumn,
 			ToColumn:   c.selectorColumn,
 		}
 	case c.selectorRow < c.cursorRow:
 		return selectionSpan{
 			FromRow:    c.selectorRow,
-			ToRow:      c.cursorRow,
+			ToRow:      c.cursorRow + 1,
 			FromColumn: c.selectorColumn,
 			ToColumn:   c.cursorColumn,
 		}
 	default:
 		return selectionSpan{
 			FromRow:    c.cursorRow,
-			ToRow:      c.cursorRow,
+			ToRow:      c.cursorRow + 1,
 			FromColumn: min(c.cursorColumn, c.selectorColumn),
 			ToColumn:   max(c.cursorColumn, c.selectorColumn),
 		}
@@ -1013,21 +788,21 @@ type selectionSpan struct {
 }
 
 func (s selectionSpan) Valid() bool {
-	return s.FromRow != s.ToRow || s.FromColumn != s.ToColumn
+	return s.FromRow < s.ToRow && s.FromColumn != s.ToColumn
 }
 
 func (s selectionSpan) ContainsRow(row int) bool {
-	return s.FromRow <= row && row <= s.ToRow
+	return s.FromRow <= row && row < s.ToRow
 }
 
 func (s selectionSpan) ColumnSpan(row, lineLength int) (int, int) {
-	if row == s.FromRow && row == s.ToRow {
+	if (row == s.FromRow) && (row == s.ToRow-1) {
 		return s.FromColumn, s.ToColumn
 	}
 	switch row {
 	case s.FromRow:
 		return s.FromColumn, lineLength
-	case s.ToRow:
+	case s.ToRow - 1:
 		return 0, s.ToColumn
 	default:
 		return 0, lineLength
