@@ -325,15 +325,14 @@ func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
 }
 
 func (c *codeAreaComponent) selectedText() [][]rune {
-	selection := c.selectionRange()
-	if !selection.Valid() {
+	fromRow, toRow := c.selectedRows()
+	if fromRow >= toRow {
 		return [][]rune{}
 	}
-
 	var result [][]rune
-	for row := selection.FromRow; row <= selection.ToRow; row++ {
+	for row := fromRow; row < toRow; row++ {
 		line := c.lines[row]
-		fromColumn, toColumn := selection.ColumnSpan(row, len(line))
+		fromColumn, toColumn := c.selectedColumns(row)
 		result = append(result, slices.Clone(line[fromColumn:toColumn]))
 	}
 	return result
@@ -440,7 +439,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			if event.Modifiers.Contains(ui.KeyModifierShift) {
 				c.moveCursorLeft()
 			} else {
-				if !c.selectionRange().Valid() {
+				if !c.hasSelection() {
 					c.moveCursorLeft()
 				}
 				c.resetSelector()
@@ -455,7 +454,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			if event.Modifiers.Contains(ui.KeyModifierShift) {
 				c.moveCursorRight()
 			} else {
-				if !c.selectionRange().Valid() {
+				if !c.hasSelection() {
 					c.moveCursorRight()
 				}
 				c.resetSelector()
@@ -747,29 +746,44 @@ func (c *codeAreaComponent) constructText() string {
 	}), "\n")
 }
 
-func (c *codeAreaComponent) selectionRange() selectionSpan {
+func (c *codeAreaComponent) selectedRows() (int, int) {
 	switch {
 	case c.cursorRow < c.selectorRow:
-		return selectionSpan{
-			FromRow:    c.cursorRow,
-			ToRow:      c.selectorRow + 1,
-			FromColumn: c.cursorColumn,
-			ToColumn:   c.selectorColumn,
-		}
+		return c.cursorRow, c.selectorRow + 1
 	case c.selectorRow < c.cursorRow:
-		return selectionSpan{
-			FromRow:    c.selectorRow,
-			ToRow:      c.cursorRow + 1,
-			FromColumn: c.selectorColumn,
-			ToColumn:   c.cursorColumn,
+		return c.selectorRow, c.cursorRow + 1
+	default:
+		return c.cursorRow, c.cursorRow + 1
+	}
+}
+
+func (c *codeAreaComponent) selectedColumns(row int) (int, int) {
+	if row == c.cursorRow && row == c.selectorRow {
+		fromColumn := min(c.cursorColumn, c.selectorColumn)
+		toColumn := max(c.cursorColumn, c.selectorColumn)
+		return fromColumn, toColumn
+	}
+	if row < c.cursorRow && row < c.selectorRow {
+		return 0, 0
+	}
+	if row > c.cursorRow && row > c.selectorRow {
+		return 0, 0
+	}
+	switch row {
+	case c.cursorRow:
+		if c.cursorRow < c.selectorRow {
+			return c.cursorColumn, len(c.lines[row])
+		} else {
+			return 0, c.cursorColumn
+		}
+	case c.selectorRow:
+		if c.selectorRow < c.cursorRow {
+			return c.selectorColumn, len(c.lines[row])
+		} else {
+			return 0, c.selectorColumn
 		}
 	default:
-		return selectionSpan{
-			FromRow:    c.cursorRow,
-			ToRow:      c.cursorRow + 1,
-			FromColumn: min(c.cursorColumn, c.selectorColumn),
-			ToColumn:   max(c.cursorColumn, c.selectorColumn),
-		}
+		return 0, len(c.lines[row])
 	}
 }
 
@@ -777,35 +791,6 @@ func (c *codeAreaComponent) notifyChanged() {
 	c.refreshTextSize()
 	if c.onChange != nil {
 		c.onChange(string(c.constructText()))
-	}
-}
-
-type selectionSpan struct {
-	FromRow    int
-	FromColumn int
-	ToRow      int
-	ToColumn   int
-}
-
-func (s selectionSpan) Valid() bool {
-	return s.FromRow < s.ToRow && s.FromColumn != s.ToColumn
-}
-
-func (s selectionSpan) ContainsRow(row int) bool {
-	return s.FromRow <= row && row < s.ToRow
-}
-
-func (s selectionSpan) ColumnSpan(row, lineLength int) (int, int) {
-	if (row == s.FromRow) && (row == s.ToRow-1) {
-		return s.FromColumn, s.ToColumn
-	}
-	switch row {
-	case s.FromRow:
-		return s.FromColumn, lineLength
-	case s.ToRow - 1:
-		return 0, s.ToColumn
-	default:
-		return 0, lineLength
 	}
 }
 

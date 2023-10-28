@@ -54,7 +54,7 @@ func (c *editboxComponent) drawSelection(element *ui.Element, canvas *ui.Canvas,
 	if !c.hasSelection() || !element.IsFocused() {
 		return
 	}
-	fromColumn, toColumn := c.selectionRange()
+	fromColumn, toColumn := c.selectedColumns()
 	visibleFromColumn, visibleToColumn := c.visibleColumns(bounds)
 	fromColumn = max(fromColumn, visibleFromColumn)
 	toColumn = min(toColumn, visibleToColumn)

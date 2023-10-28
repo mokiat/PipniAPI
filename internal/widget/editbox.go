@@ -449,14 +449,14 @@ func (c *editboxComponent) hasSelection() bool {
 	return c.cursorColumn != c.selectorColumn
 }
 
-func (c *editboxComponent) selectionRange() (int, int) {
+func (c *editboxComponent) selectedColumns() (int, int) {
 	fromColumn := min(c.cursorColumn, c.selectorColumn)
 	toColumn := max(c.cursorColumn, c.selectorColumn)
 	return fromColumn, toColumn
 }
 
 func (c *editboxComponent) selectedText() []rune {
-	fromColumn, toColumn := c.selectionRange()
+	fromColumn, toColumn := c.selectedColumns()
 	return slices.Clone(c.line[fromColumn:toColumn])
 }
 
@@ -525,7 +525,7 @@ func (c *editboxComponent) changeAppendText(text []rune) state.Change {
 }
 
 func (c *editboxComponent) changeReplaceSelection(text []rune) state.Change {
-	fromColumn, toColumn := c.selectionRange()
+	fromColumn, toColumn := c.selectedColumns()
 	selectedText := slices.Clone(c.line[fromColumn:toColumn])
 	return &textTypeChange{
 		when: time.Now(),
@@ -545,7 +545,7 @@ func (c *editboxComponent) changeReplaceSelection(text []rune) state.Change {
 }
 
 func (c *editboxComponent) changeDeleteSelection() state.Change {
-	fromColumn, toColumn := c.selectionRange()
+	fromColumn, toColumn := c.selectedColumns()
 	selectedText := slices.Clone(c.line[fromColumn:toColumn])
 	return &textTypeChange{
 		when: time.Now(),

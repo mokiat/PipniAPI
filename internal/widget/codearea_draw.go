@@ -61,9 +61,7 @@ func (c *codeAreaComponent) drawSelection(element *ui.Element, canvas *ui.Canvas
 	if !c.hasSelection() || !element.IsFocused() {
 		return
 	}
-
-	selectedSpan := c.selectionRange()
-	fromRow, toRow := selectedSpan.FromRow, selectedSpan.ToRow
+	fromRow, toRow := c.selectedRows()
 	visibleFromRow, visibleToRow := c.visibleRows(bounds)
 	fromRow = max(fromRow, visibleFromRow)
 	toRow = min(toRow, visibleToRow)
@@ -78,12 +76,12 @@ func (c *codeAreaComponent) drawSelection(element *ui.Element, canvas *ui.Canvas
 		Y: float32(fromRow)*lineHeight - c.offsetY,
 	})
 	for row := fromRow; row < toRow; row++ {
-		line := c.lines[row]
-		fromColumn, toColumn := selectedSpan.ColumnSpan(row, len(line))
+		fromColumn, toColumn := c.selectedColumns(row)
 		visibleFromColumn, visibleToColumn := c.visibleColumns(row, bounds)
 		fromColumn = max(fromColumn, visibleFromColumn)
 		toColumn = min(toColumn, visibleToColumn)
 		if fromColumn < toColumn {
+			line := c.lines[row]
 			selectionOffset := c.font.LineWidth(line[:fromColumn], c.fontSize)
 			selectionWidth := c.font.LineWidth(line[fromColumn:toColumn], c.fontSize)
 			selectionPosition := sprec.Vec2{
