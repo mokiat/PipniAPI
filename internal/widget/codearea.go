@@ -168,7 +168,7 @@ func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.Clipb
 
 	case ui.ClipboardActionCopy:
 		if c.hasSelection() {
-			text := strings.Join(gog.Map(c.selectedText(), lineToText), ",")
+			text := strings.Join(gog.Map(c.selectedLines(), lineToText), "\n")
 			element.Window().RequestCopy(text)
 		}
 		return true
@@ -265,7 +265,7 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 		c.cursorRow = c.findCursorRow(element, event.Y)
 		c.cursorColumn = c.findCursorColumn(element, event.X)
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
+			c.clearSelection()
 		}
 		element.Invalidate()
 		return true
@@ -322,20 +322,6 @@ func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
 	c.maxOffsetY = float32(max(c.textHeight-availableTextHeight, 0))
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
 	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
-}
-
-func (c *codeAreaComponent) selectedText() [][]rune {
-	fromRow, toRow := c.selectedRows()
-	if fromRow >= toRow {
-		return [][]rune{}
-	}
-	var result [][]rune
-	for row := fromRow; row < toRow; row++ {
-		line := c.lines[row]
-		fromColumn, toColumn := c.selectedColumns(row)
-		result = append(result, slices.Clone(line[fromColumn:toColumn]))
-	}
-	return result
 }
 
 func (c *codeAreaComponent) findCursorRow(element *ui.Element, y int) int {
@@ -416,7 +402,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		} else {
 			c.moveCursorUp()
 			if !event.Modifiers.Contains(ui.KeyModifierShift) {
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -427,7 +413,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		} else {
 			c.moveCursorDown()
 			if !event.Modifiers.Contains(ui.KeyModifierShift) {
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -442,7 +428,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 				if !c.hasSelection() {
 					c.moveCursorLeft()
 				}
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -457,7 +443,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 				if !c.hasSelection() {
 					c.moveCursorRight()
 				}
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -469,7 +455,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		// TODO: Check if selection
 		c.eraseLeft()
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
+			c.clearSelection()
 		}
 		c.notifyChanged()
 		return true
@@ -481,7 +467,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		// TODO: Check if selection
 		c.eraseRight()
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
+			c.clearSelection()
 		}
 		c.notifyChanged()
 		return true
@@ -492,7 +478,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		}
 		c.breakLine()
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
+			c.clearSelection()
 		}
 		c.notifyChanged()
 		return true
@@ -503,7 +489,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		}
 		c.appendCharacter('\t')
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
+			c.clearSelection()
 		}
 		c.notifyChanged()
 		return true
@@ -518,21 +504,9 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 		return false
 	}
 	c.appendCharacter(event.Rune)
-	c.resetSelector()
+	c.clearSelection()
 	c.notifyChanged()
 	return true
-}
-
-func (c *codeAreaComponent) hasSelection() bool {
-	return c.cursorColumn != c.selectorColumn ||
-		c.cursorRow != c.selectorRow
-}
-
-func (c *codeAreaComponent) selectAll() {
-	c.selectorRow = 0
-	c.selectorColumn = 0
-	c.cursorRow = len(c.lines) - 1
-	c.cursorColumn = len(c.lines[c.cursorRow])
 }
 
 func (c *codeAreaComponent) scrollUp() {
@@ -553,11 +527,6 @@ func (c *codeAreaComponent) scrollLeft() {
 func (c *codeAreaComponent) scrollRight() {
 	c.offsetX += 20
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-}
-
-func (c *codeAreaComponent) resetSelector() {
-	c.selectorRow = c.cursorRow
-	c.selectorColumn = c.cursorColumn
 }
 
 func (c *codeAreaComponent) moveCursorUp() {
@@ -744,47 +713,6 @@ func (c *codeAreaComponent) constructText() string {
 	return strings.Join(gog.Map(c.lines, func(line []rune) string {
 		return string(line)
 	}), "\n")
-}
-
-func (c *codeAreaComponent) selectedRows() (int, int) {
-	switch {
-	case c.cursorRow < c.selectorRow:
-		return c.cursorRow, c.selectorRow + 1
-	case c.selectorRow < c.cursorRow:
-		return c.selectorRow, c.cursorRow + 1
-	default:
-		return c.cursorRow, c.cursorRow + 1
-	}
-}
-
-func (c *codeAreaComponent) selectedColumns(row int) (int, int) {
-	if row == c.cursorRow && row == c.selectorRow {
-		fromColumn := min(c.cursorColumn, c.selectorColumn)
-		toColumn := max(c.cursorColumn, c.selectorColumn)
-		return fromColumn, toColumn
-	}
-	if row < c.cursorRow && row < c.selectorRow {
-		return 0, 0
-	}
-	if row > c.cursorRow && row > c.selectorRow {
-		return 0, 0
-	}
-	switch row {
-	case c.cursorRow:
-		if c.cursorRow < c.selectorRow {
-			return c.cursorColumn, len(c.lines[row])
-		} else {
-			return 0, c.cursorColumn
-		}
-	case c.selectorRow:
-		if c.selectorRow < c.cursorRow {
-			return c.selectorColumn, len(c.lines[row])
-		} else {
-			return 0, c.selectorColumn
-		}
-	default:
-		return 0, len(c.lines[row])
-	}
 }
 
 func (c *codeAreaComponent) notifyChanged() {

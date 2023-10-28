@@ -155,7 +155,7 @@ func (c *editboxComponent) OnClipboardEvent(element *ui.Element, event ui.Clipbo
 			return false
 		}
 		if c.hasSelection() {
-			text := string(c.selectedText())
+			text := string(c.selectedSegment())
 			element.Window().RequestCopy(text)
 			c.history.Do(c.changeDeleteSelection())
 			c.notifyChanged()
@@ -164,7 +164,7 @@ func (c *editboxComponent) OnClipboardEvent(element *ui.Element, event ui.Clipbo
 
 	case ui.ClipboardActionCopy:
 		if c.hasSelection() {
-			text := string(c.selectedText())
+			text := string(c.selectedSegment())
 			element.Window().RequestCopy(text)
 		}
 		return true
@@ -255,7 +255,7 @@ func (c *editboxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 		c.isDragging = true
 		c.cursorColumn = c.findCursorColumn(element, event.X)
 		if !event.Modifiers.Contains(ui.KeyModifierShift) {
-			c.resetSelector()
+			c.clearSelection()
 		}
 		element.Invalidate()
 		return true
@@ -319,7 +319,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		if !c.isReadOnly {
 			c.moveCursorToStartOfLine()
 			if !event.Modifiers.Contains(ui.KeyModifierShift) {
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -328,7 +328,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		if !c.isReadOnly {
 			c.moveCursorToEndOfLine()
 			if !event.Modifiers.Contains(ui.KeyModifierShift) {
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -338,14 +338,14 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 
 	case ui.KeyCodeEscape:
 		c.isDragging = false
-		c.resetSelector()
+		c.clearSelection()
 		return true
 
 	case ui.KeyCodeArrowUp:
 		if !c.isReadOnly {
 			c.moveCursorToStartOfLine()
 			if !event.Modifiers.Contains(ui.KeyModifierShift) {
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -354,7 +354,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		if !c.isReadOnly {
 			c.moveCursorToEndOfLine()
 			if !event.Modifiers.Contains(ui.KeyModifierShift) {
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -371,7 +371,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 				} else {
 					c.moveCursorLeft()
 				}
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -388,7 +388,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 				} else {
 					c.moveCursorRight()
 				}
-				c.resetSelector()
+				c.clearSelection()
 			}
 		}
 		return true
@@ -445,26 +445,6 @@ func (c *editboxComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Key
 	return true
 }
 
-func (c *editboxComponent) hasSelection() bool {
-	return c.cursorColumn != c.selectorColumn
-}
-
-func (c *editboxComponent) selectedColumns() (int, int) {
-	fromColumn := min(c.cursorColumn, c.selectorColumn)
-	toColumn := max(c.cursorColumn, c.selectorColumn)
-	return fromColumn, toColumn
-}
-
-func (c *editboxComponent) selectedText() []rune {
-	fromColumn, toColumn := c.selectedColumns()
-	return slices.Clone(c.line[fromColumn:toColumn])
-}
-
-func (c *editboxComponent) selectAll() {
-	c.selectorColumn = 0
-	c.cursorColumn = len(c.line)
-}
-
 func (c *editboxComponent) scrollLeft() {
 	c.offsetX -= editboxKeyScrollSpeed
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
@@ -473,10 +453,6 @@ func (c *editboxComponent) scrollLeft() {
 func (c *editboxComponent) scrollRight() {
 	c.offsetX += editboxKeyScrollSpeed
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-}
-
-func (c *editboxComponent) resetSelector() {
-	c.selectorColumn = c.cursorColumn
 }
 
 func (c *editboxComponent) moveCursorLeft() {
