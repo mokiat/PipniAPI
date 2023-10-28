@@ -122,16 +122,13 @@ func (c *codeAreaComponent) Render() co.Instance {
 		Top:    codeAreaPaddingTop,
 		Bottom: codeAreaPaddingBottom,
 	}
-	textPadding := codeAreaTextPaddingLeft + codeAreaTextPaddingRight
-	rulerPadding := codeAreaRulerPaddingLeft + codeAreaRulerPaddingRight
-
 	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ElementData{
 			Essence:   c,
 			Focusable: opt.V(true),
 			IdealSize: opt.V(ui.Size{
-				Width:  c.textWidth + textPadding + c.rulerWidth + rulerPadding,
+				Width:  c.textWidth + c.rulerWidth,
 				Height: c.textHeight,
 			}.Grow(padding.Size())),
 		})
@@ -202,24 +199,38 @@ func (c *codeAreaComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
 
 func (c *codeAreaComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	c.refreshScrollBounds(element)
-	c.drawFrame(element, canvas)
-	c.drawContent(element, canvas)
-	c.drawFrameBorder(element, canvas)
+
+	bounds := canvas.DrawBounds(element, false)
+	contentBounds := canvas.DrawBounds(element, true)
+
+	canvas.Push()
+	canvas.ClipRect(bounds.Position, bounds.Size)
+	canvas.Translate(bounds.Position)
+	c.drawFrame(element, canvas, bounds.Size)
+	canvas.Pop()
+
+	canvas.Push()
+	canvas.ClipRect(contentBounds.Position, contentBounds.Size)
+	canvas.Translate(contentBounds.Position)
+	c.drawContent(element, canvas, contentBounds.Size)
+	canvas.Pop()
+
+	canvas.Push()
+	canvas.ClipRect(bounds.Position, bounds.Size)
+	canvas.Translate(bounds.Position)
+	c.drawFrameBorder(element, canvas, bounds.Size)
+	canvas.Pop()
 }
 
-func (c *codeAreaComponent) drawFrame(element *ui.Element, canvas *ui.Canvas) {
-	bounds := canvas.DrawBounds(element, false)
-
+func (c *codeAreaComponent) drawFrame(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
 	canvas.Reset()
-	canvas.Rectangle(bounds.Position, bounds.Size)
+	canvas.Rectangle(sprec.ZeroVec2(), bounds)
 	canvas.Fill(ui.Fill{
 		Color: std.SurfaceColor,
 	})
 }
 
-func (c *codeAreaComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canvas) {
-	bounds := canvas.DrawBounds(element, false)
-
+func (c *codeAreaComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
 	canvas.Reset()
 	if element.IsFocused() {
 		canvas.SetStrokeColor(std.SecondaryLightColor)
@@ -227,28 +238,36 @@ func (c *codeAreaComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canv
 		canvas.SetStrokeColor(std.PrimaryLightColor)
 	}
 	canvas.SetStrokeSize(codeAreaBorderSize)
-	canvas.Rectangle(bounds.Position, bounds.Size)
+	canvas.Rectangle(sprec.ZeroVec2(), bounds)
 	canvas.Stroke()
 }
 
-func (c *codeAreaComponent) drawContent(element *ui.Element, canvas *ui.Canvas) {
-	contentBounds := canvas.DrawBounds(element, true)
-
+func (c *codeAreaComponent) drawContent(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
+	rulerPosition := sprec.Vec2{}
+	rulerSize := sprec.Vec2{
+		X: float32(c.rulerWidth),
+		Y: bounds.Y,
+	}
 	canvas.Push()
-	canvas.SetClipRect(
-		contentBounds.X(),
-		contentBounds.X()+contentBounds.Width(),
-		contentBounds.Y(),
-		contentBounds.Y()+contentBounds.Height(),
-	)
-	canvas.Translate(sprec.Vec2{
-		X: contentBounds.X(),
-		Y: contentBounds.Y(),
-	})
-	c.drawSelection(element, canvas, contentBounds.Size)
-	c.drawText(element, canvas, contentBounds.Size)
-	c.drawCursor(element, canvas, contentBounds.Size)
-	c.drawRuler(element, canvas, contentBounds.Size)
+	canvas.ClipRect(rulerPosition, rulerSize)
+	canvas.Translate(rulerPosition)
+	c.drawRuler(element, canvas, rulerSize)
+	canvas.Pop()
+
+	editorPosition := sprec.Vec2{
+		X: rulerSize.X,
+		Y: 0.0,
+	}
+	editorSize := sprec.Vec2{
+		X: bounds.X - rulerSize.X,
+		Y: bounds.Y,
+	}
+	canvas.Push()
+	canvas.ClipRect(editorPosition, editorSize)
+	canvas.Translate(editorPosition)
+	c.drawSelection(element, canvas, editorSize)
+	c.drawText(element, canvas, editorSize)
+	c.drawCursor(element, canvas, editorSize)
 	canvas.Pop()
 }
 
@@ -265,58 +284,74 @@ func (c *codeAreaComponent) drawSelection(element *ui.Element, canvas *ui.Canvas
 	fromRow = max(fromRow, span.FromRow)
 	toRow = min(toRow, span.ToRow)
 
-	rulerPadding := codeAreaRulerPaddingLeft + codeAreaRulerPaddingRight
-	rulerSize := c.rulerWidth + rulerPadding
 	lineHeight := c.font.LineHeight(c.fontSize)
 
-	textPosition := sprec.Vec2{
-		X: float32(rulerSize+codeAreaTextPaddingLeft) - c.offsetX,
+	canvas.Push()
+	canvas.Translate(sprec.Vec2{
+		X: float32(codeAreaTextPaddingLeft) - c.offsetX,
 		Y: float32(fromRow)*lineHeight - c.offsetY,
-	}
+	})
 	for i := fromRow; i <= toRow; i++ {
 		line := c.lines[i]
 		fromColumn, toColumn := span.ColumnSpan(i, len(line))
 		preSelectionWidth := c.font.LineWidth(line[:fromColumn], c.fontSize)
 		selectionWidth := c.font.LineWidth(line[fromColumn:toColumn], c.fontSize)
 
-		selectionPosition := sprec.Vec2Sum(textPosition, sprec.Vec2{
+		selectionPosition := sprec.Vec2{
 			X: preSelectionWidth,
 			Y: 0.0,
-		})
+		}
 		selectionSize := sprec.Vec2{
 			X: selectionWidth,
 			Y: lineHeight,
 		}
-
 		canvas.Reset()
 		canvas.Rectangle(selectionPosition, selectionSize)
 		canvas.Fill(ui.Fill{
 			Color: std.SecondaryLightColor,
 		})
-		textPosition.Y += lineHeight
+		canvas.Translate(sprec.Vec2{
+			Y: lineHeight,
+		})
 	}
+	canvas.Pop()
 }
 
 func (c *codeAreaComponent) drawText(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	rulerPadding := codeAreaRulerPaddingLeft + codeAreaRulerPaddingRight
-	rulerSize := c.rulerWidth + rulerPadding
-
 	fromRow, toRow := c.visibleRows(bounds)
+	if fromRow > toRow {
+		return
+	}
+
 	lineHeight := c.font.LineHeight(c.fontSize)
 
-	textPosition := sprec.Vec2{
-		X: float32(rulerSize+codeAreaTextPaddingLeft) - c.offsetX,
+	canvas.Push()
+	canvas.Translate(sprec.Vec2{
+		X: float32(codeAreaTextPaddingLeft) - c.offsetX,
 		Y: float32(fromRow)*lineHeight - c.offsetY,
-	}
+	})
 	for i := fromRow; i <= toRow; i++ {
-		canvas.Reset()
-		canvas.FillText(string(c.lines[i]), textPosition, ui.Typography{
-			Font:  c.font,
-			Size:  c.fontSize,
-			Color: std.OnSurfaceColor,
+		fromColumn, toColumn := c.visibleColumns(i, bounds)
+		if fromColumn <= toColumn {
+			line := c.lines[i]
+			preVisibleText := line[:fromColumn]
+			preVisibleTextWidth := c.font.LineWidth(preVisibleText, c.fontSize)
+			visibleText := line[fromColumn : toColumn+1]
+			visibleTextPosition := sprec.Vec2{
+				X: preVisibleTextWidth,
+			}
+			canvas.Reset()
+			canvas.FillText(string(visibleText), visibleTextPosition, ui.Typography{
+				Font:  c.font,
+				Size:  c.fontSize,
+				Color: std.OnSurfaceColor,
+			})
+		}
+		canvas.Translate(sprec.Vec2{
+			Y: lineHeight,
 		})
-		textPosition.Y += lineHeight
 	}
+	canvas.Pop()
 }
 
 func (c *codeAreaComponent) drawCursor(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
@@ -329,56 +364,58 @@ func (c *codeAreaComponent) drawCursor(element *ui.Element, canvas *ui.Canvas, b
 		return
 	}
 
-	rulerPadding := codeAreaRulerPaddingLeft + codeAreaRulerPaddingRight
-	rulerSize := c.rulerWidth + rulerPadding
-
 	lineHeight := c.font.LineHeight(c.fontSize)
 	line := c.lines[c.cursorRow]
 	preCursorText := line[:c.cursorColumn]
 	preCursorTextWidth := c.font.LineWidth(preCursorText, c.fontSize)
 
 	cursorPosition := sprec.Vec2{
-		X: float32(rulerSize+codeAreaTextPaddingLeft) + preCursorTextWidth - c.offsetX,
+		X: float32(codeAreaTextPaddingLeft) + preCursorTextWidth - c.offsetX,
 		Y: float32(c.cursorRow)*lineHeight - c.offsetY,
 	}
 	cursorSize := sprec.NewVec2(editboxCursorWidth, lineHeight)
-
-	canvas.Reset()
-	canvas.Rectangle(cursorPosition, cursorSize)
-	canvas.Fill(ui.Fill{
-		Color: std.PrimaryColor,
-	})
+	if cursorPosition.X+cursorSize.X > 0.0 && cursorPosition.X < bounds.X {
+		canvas.Reset()
+		canvas.Rectangle(cursorPosition, cursorSize)
+		canvas.Fill(ui.Fill{
+			Color: std.PrimaryColor,
+		})
+	}
 }
 
 func (c *codeAreaComponent) drawRuler(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
-	lineHeight := c.font.LineHeight(c.fontSize)
-	rulerWidth := c.rulerWidth + codeAreaRulerPaddingLeft + codeAreaRulerPaddingRight
-	rulerSize := sprec.NewVec2(float32(rulerWidth), bounds.Y)
-
 	canvas.Reset()
 	canvas.Rectangle(
 		sprec.ZeroVec2(),
-		rulerSize,
+		bounds,
 	)
 	canvas.Fill(ui.Fill{
 		Color: std.PrimaryLightColor,
 	})
 
 	fromRow, toRow := c.visibleRows(bounds)
+	if fromRow > toRow {
+		return
+	}
 
-	rulerTextPosition := sprec.Vec2{
+	lineHeight := c.font.LineHeight(c.fontSize)
+	canvas.Push()
+	canvas.Translate(sprec.Vec2{
 		X: codeAreaRulerPaddingLeft,
 		Y: float32(fromRow)*lineHeight - c.offsetY,
-	}
+	})
 	for i := fromRow; i <= toRow; i++ {
 		canvas.Reset()
-		canvas.FillText(strconv.Itoa(i+1), rulerTextPosition, ui.Typography{
+		canvas.FillText(strconv.Itoa(i+1), sprec.ZeroVec2(), ui.Typography{
 			Font:  c.font,
 			Size:  c.fontSize,
 			Color: std.OnSurfaceColor,
 		})
-		rulerTextPosition.Y += lineHeight
+		canvas.Translate(sprec.Vec2{
+			Y: lineHeight,
+		})
 	}
+	canvas.Pop()
 }
 
 func (c *codeAreaComponent) visibleRows(bounds sprec.Vec2) (int, int) {
@@ -386,6 +423,26 @@ func (c *codeAreaComponent) visibleRows(bounds sprec.Vec2) (int, int) {
 	fromRow := int(c.offsetY / lineHeight)
 	toRow := fromRow + int(bounds.Y/lineHeight) + 1
 	return max(fromRow, 0), min(toRow, len(c.lines)-1)
+}
+
+func (c *codeAreaComponent) visibleColumns(row int, bounds sprec.Vec2) (int, int) {
+	line := c.lines[row]
+	minVisible := len(line)
+	maxVisible := -1
+	offset := float32(codeAreaTextPaddingLeft) - c.offsetX
+	iterator := c.font.LineIterator(line, c.fontSize)
+	column := 0
+	for iterator.Next() {
+		character := iterator.Character()
+		characterWidth := character.Kern + character.Width
+		if offset+characterWidth > 0.0 && offset < bounds.X {
+			minVisible = min(minVisible, column)
+			maxVisible = max(maxVisible, column)
+		}
+		offset += characterWidth
+		column++
+	}
+	return minVisible, maxVisible
 }
 
 func (c *codeAreaComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
@@ -469,17 +526,20 @@ func (c *codeAreaComponent) refreshTextSize() {
 	}
 	txtHeight := c.font.LineHeight(c.fontSize) * float32(len(c.lines))
 
-	c.textWidth = int(math.Ceil(float64(txtWidth)))
+	c.textWidth = codeAreaTextPaddingLeft + int(math.Ceil(float64(txtWidth))) + codeAreaTextPaddingRight
 	c.textHeight = int(math.Ceil(float64(txtHeight)))
 
 	digitSize := c.font.LineWidth([]rune{'0'}, c.fontSize)
 	digitCount := countDigits(len(c.lines))
-	c.rulerWidth = int(math.Ceil(float64(digitSize)) * float64(digitCount))
+	rulerTextWidth := int(math.Ceil(float64(digitSize)) * float64(digitCount))
+	c.rulerWidth = codeAreaRulerPaddingLeft + rulerTextWidth + codeAreaRulerPaddingRight
 }
 
 func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
 	bounds := element.ContentBounds()
-	availableTextWidth := bounds.Width - 110
+
+	textPadding := codeAreaTextPaddingLeft + codeAreaTextPaddingRight
+	availableTextWidth := bounds.Width - c.rulerWidth - textPadding
 	availableTextHeight := bounds.Height
 	c.maxOffsetX = float32(max(c.textWidth-availableTextWidth, 0))
 	c.maxOffsetY = float32(max(c.textHeight-availableTextHeight, 0))
@@ -503,7 +563,8 @@ func (c *codeAreaComponent) selectedText() [][]rune {
 }
 
 func (c *codeAreaComponent) findCursorRow(element *ui.Element, y int) int {
-	y -= element.Padding().Top - int(c.offsetY)
+	y += int(c.offsetY)
+	y -= element.Padding().Top
 
 	lineHeight := c.font.LineHeight(c.fontSize)
 	row := y / int(lineHeight)
@@ -511,7 +572,10 @@ func (c *codeAreaComponent) findCursorRow(element *ui.Element, y int) int {
 }
 
 func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
-	x -= element.Padding().Left + 105 - int(c.offsetX)
+	x += int(c.offsetX)
+	x -= element.Padding().Left
+	x -= c.rulerWidth
+	x -= codeAreaTextPaddingLeft
 
 	bestColumn := 0
 	bestDistance := abs(x)

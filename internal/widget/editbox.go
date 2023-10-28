@@ -193,9 +193,27 @@ func (c *editboxComponent) OnResize(element *ui.Element, bounds ui.Bounds) {
 
 func (c *editboxComponent) OnRender(element *ui.Element, canvas *ui.Canvas) {
 	c.refreshScrollBounds(element)
-	c.drawFrame(element, canvas)
-	c.drawContent(element, canvas)
-	c.drawFrameBorder(element, canvas)
+
+	bounds := canvas.DrawBounds(element, false)
+	contentBounds := canvas.DrawBounds(element, true)
+
+	canvas.Push()
+	canvas.ClipRect(bounds.Position, bounds.Size)
+	canvas.Translate(bounds.Position)
+	c.drawFrame(element, canvas, bounds.Size)
+	canvas.Pop()
+
+	canvas.Push()
+	canvas.ClipRect(contentBounds.Position, contentBounds.Size)
+	canvas.Translate(contentBounds.Position)
+	c.drawContent(element, canvas, contentBounds.Size)
+	canvas.Pop()
+
+	canvas.Push()
+	canvas.ClipRect(bounds.Position, bounds.Size)
+	canvas.Translate(bounds.Position)
+	c.drawFrameBorder(element, canvas, bounds.Size)
+	canvas.Pop()
 }
 
 func (c *editboxComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
@@ -266,13 +284,11 @@ func (c *editboxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 	}
 }
 
-func (c *editboxComponent) drawFrame(element *ui.Element, canvas *ui.Canvas) {
-	bounds := canvas.DrawBounds(element, false)
-
+func (c *editboxComponent) drawFrame(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
 	canvas.Reset()
 	canvas.RoundRectangle(
-		bounds.Position,
-		bounds.Size,
+		sprec.ZeroVec2(),
+		bounds,
 		sprec.NewVec4(
 			editboxBorderRadius,
 			editboxBorderRadius,
@@ -285,9 +301,7 @@ func (c *editboxComponent) drawFrame(element *ui.Element, canvas *ui.Canvas) {
 	})
 }
 
-func (c *editboxComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canvas) {
-	bounds := canvas.DrawBounds(element, false)
-
+func (c *editboxComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
 	canvas.Reset()
 	if element.IsFocused() {
 		canvas.SetStrokeColor(std.SecondaryLightColor)
@@ -296,8 +310,8 @@ func (c *editboxComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canva
 	}
 	canvas.SetStrokeSize(editboxBorderSize)
 	canvas.RoundRectangle(
-		bounds.Position,
-		bounds.Size,
+		sprec.ZeroVec2(),
+		bounds,
 		sprec.NewVec4(
 			editboxBorderRadius,
 			editboxBorderRadius,
@@ -308,24 +322,10 @@ func (c *editboxComponent) drawFrameBorder(element *ui.Element, canvas *ui.Canva
 	canvas.Stroke()
 }
 
-func (c *editboxComponent) drawContent(element *ui.Element, canvas *ui.Canvas) {
-	contentBounds := canvas.DrawBounds(element, true)
-
-	canvas.Push()
-	canvas.SetClipRect(
-		contentBounds.X(),
-		contentBounds.X()+contentBounds.Width(),
-		contentBounds.Y(),
-		contentBounds.Y()+contentBounds.Height(),
-	)
-	canvas.Translate(sprec.Vec2{
-		X: contentBounds.X() + float32(editboxTextPaddingLeft) - float32(c.offsetX),
-		Y: contentBounds.Y(),
-	})
+func (c *editboxComponent) drawContent(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
 	c.drawSelection(element, canvas)
-	c.drawText(element, canvas)
+	c.drawText(element, canvas, bounds)
 	c.drawCursor(element, canvas)
-	canvas.Pop()
 }
 
 func (c *editboxComponent) drawSelection(element *ui.Element, canvas *ui.Canvas) {
@@ -338,9 +338,13 @@ func (c *editboxComponent) drawSelection(element *ui.Element, canvas *ui.Canvas)
 	selectionWidth := c.font.LineWidth(c.line[fromColumn:toColumn], c.fontSize)
 	selectionHeight := c.font.LineHeight(c.fontSize)
 
-	selectionPosition := sprec.NewVec2(preSelectionWidth, 0.0)
-	selectionSize := sprec.NewVec2(selectionWidth, selectionHeight)
-
+	selectionPosition := sprec.Vec2{
+		X: editboxTextPaddingLeft + preSelectionWidth - c.offsetX,
+	}
+	selectionSize := sprec.Vec2{
+		X: selectionWidth,
+		Y: selectionHeight,
+	}
 	canvas.Reset()
 	canvas.Rectangle(selectionPosition, selectionSize)
 	canvas.Fill(ui.Fill{
@@ -348,13 +352,24 @@ func (c *editboxComponent) drawSelection(element *ui.Element, canvas *ui.Canvas)
 	})
 }
 
-func (c *editboxComponent) drawText(element *ui.Element, canvas *ui.Canvas) {
+func (c *editboxComponent) drawText(element *ui.Element, canvas *ui.Canvas, bounds sprec.Vec2) {
 	if len(c.line) == 0 {
 		return
 	}
+	fromColumn, toColumn := c.visibleColumns(bounds)
+	if fromColumn > toColumn {
+		return
+	}
+
+	preVisibleText := c.line[:fromColumn]
+	preVisibleTextWidth := c.font.LineWidth(preVisibleText, c.fontSize)
+	visibleText := c.line[fromColumn : toColumn+1]
+	visibleTextPosition := sprec.Vec2{
+		X: editboxTextPaddingLeft + preVisibleTextWidth - c.offsetX,
+	}
 
 	canvas.Reset()
-	canvas.FillText(string(c.line), sprec.ZeroVec2(), ui.Typography{
+	canvas.FillText(string(visibleText), visibleTextPosition, ui.Typography{
 		Font:  c.font,
 		Size:  c.fontSize,
 		Color: std.OnSurfaceColor,
@@ -370,14 +385,37 @@ func (c *editboxComponent) drawCursor(element *ui.Element, canvas *ui.Canvas) {
 	preCursorTextWidth := c.font.LineWidth(preCursorText, c.fontSize)
 	preCursorTextHeight := c.font.LineHeight(c.fontSize)
 
-	cursorPosition := sprec.NewVec2(preCursorTextWidth, 0.0)
-	cursorSize := sprec.NewVec2(editboxCursorWidth, preCursorTextHeight)
-
+	cursorPosition := sprec.Vec2{
+		X: editboxTextPaddingLeft + preCursorTextWidth - c.offsetX,
+	}
+	cursorSize := sprec.Vec2{
+		X: editboxCursorWidth,
+		Y: preCursorTextHeight,
+	}
 	canvas.Reset()
 	canvas.Rectangle(cursorPosition, cursorSize)
 	canvas.Fill(ui.Fill{
 		Color: std.PrimaryColor,
 	})
+}
+
+func (c *editboxComponent) visibleColumns(bounds sprec.Vec2) (int, int) {
+	minVisible := len(c.line)
+	maxVisible := -1
+	offset := float32(editboxTextPaddingLeft) - float32(c.offsetX)
+	iterator := c.font.LineIterator(c.line, c.fontSize)
+	column := 0
+	for iterator.Next() {
+		character := iterator.Character()
+		characterWidth := character.Kern + character.Width
+		if offset+characterWidth > 0.0 && offset < bounds.X {
+			minVisible = min(minVisible, column)
+			maxVisible = max(maxVisible, column)
+		}
+		offset += characterWidth
+		column++
+	}
+	return minVisible, maxVisible
 }
 
 func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
@@ -751,7 +789,7 @@ func (c *editboxComponent) findCursorColumn(element *ui.Element, x int) int {
 }
 
 func (c *editboxComponent) refreshTextSize() {
-	c.textWidth = int(c.font.LineWidth(c.line, c.fontSize))
+	c.textWidth = editboxTextPaddingLeft + int(c.font.LineWidth(c.line, c.fontSize)) + editboxTextPaddingRight
 	c.textHeight = int(c.font.LineHeight(c.fontSize))
 }
 
