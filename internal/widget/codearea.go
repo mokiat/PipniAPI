@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
@@ -179,12 +180,14 @@ func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.Clipb
 		if c.isReadOnly {
 			return false
 		}
-		// TODO
-		// 	if c.hasSelection() {
-		// 		c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
-		// 	} else {
-		// 		c.history.Do(c.changeAppendText([]rune(event.Text)))
-		// 	}
+
+		lines := splitLines(event.Text)
+		if c.hasSelection() {
+			// TODO
+			// 		c.history.Do(c.changeReplaceSelection([]rune(event.Text)))
+		} else {
+			c.history.Do(c.changeAppendText(lines))
+		}
 		c.notifyChanged()
 		return true
 
@@ -834,6 +837,79 @@ func (c *codeAreaComponent) moveCursorToStartOfLine() {
 
 func (c *codeAreaComponent) moveCursorToEndOfLine() {
 	c.cursorColumn = len(c.lines[c.cursorRow])
+}
+
+func (c *codeAreaComponent) changeAppendText(lines [][]rune) state.Change {
+	if len(lines) == 0 {
+		return emptyTextTypeChange() // TODO: Return nil
+	}
+	newCursorRow := c.cursorRow + len(lines) - 1
+	newCursorColumn := c.cursorColumn + len(lines[0])
+	if lng := len(lines); lng > 1 {
+		newCursorColumn = len(lines[lng-1])
+	}
+	return &textTypeChange{
+		when: time.Now(),
+		forward: []func(){
+			c.actionInsertText(c.cursorRow, c.cursorColumn, lines[0]),
+			c.actionInsertLines(c.cursorRow+1, lines[1:]),
+			c.actionRelocateCursor(newCursorRow, newCursorColumn),
+			c.actionRelocateSelector(newCursorRow, newCursorColumn),
+		},
+		reverse: []func(){
+			c.actionRelocateSelector(c.selectorRow, c.selectorColumn),
+			c.actionRelocateCursor(c.cursorRow, c.cursorColumn),
+			c.actionDeleteLines(c.cursorRow+1, c.cursorRow+len(lines)),
+			c.actionDeleteText(c.cursorRow, c.cursorColumn, c.cursorColumn+len(lines[0])),
+		},
+	}
+}
+
+func (c *codeAreaComponent) actionInsertText(row, column int, text []rune) func() {
+	return func() {
+		line := slices.Clone(c.lines[row])
+		preText := line[:column]
+		postText := line[column:]
+		c.lines[row] = gog.Concat(
+			preText,
+			text,
+			postText,
+		)
+	}
+}
+
+func (c *codeAreaComponent) actionDeleteText(row, fromColumn, toColumn int) func() {
+	return func() {
+		c.lines[row] = slices.Delete(c.lines[row], fromColumn, toColumn)
+	}
+}
+
+func (c *codeAreaComponent) actionInsertLines(row int, lines [][]rune) func() {
+	return func() {
+		c.lines = slices.Insert(c.lines, row, slices.Clone(lines)...)
+	}
+}
+
+func (c *codeAreaComponent) actionDeleteLines(fromRow, toRow int) func() {
+	return func() {
+		if fromRow <= toRow {
+			c.lines = slices.Delete(c.lines, fromRow, toRow)
+		}
+	}
+}
+
+func (c *codeAreaComponent) actionRelocateCursor(row, column int) func() {
+	return func() {
+		c.cursorRow = row
+		c.cursorColumn = column
+	}
+}
+
+func (c *codeAreaComponent) actionRelocateSelector(row, column int) func() {
+	return func() {
+		c.selectorRow = row
+		c.selectorColumn = column
+	}
 }
 
 func (c *codeAreaComponent) appendCharacter(ch rune) {
