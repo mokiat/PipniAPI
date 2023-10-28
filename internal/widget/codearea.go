@@ -4,7 +4,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	"github.com/mokiat/gog"
@@ -848,21 +847,23 @@ func (c *codeAreaComponent) changeAppendText(lines [][]rune) state.Change {
 	if lng := len(lines); lng > 1 {
 		newCursorColumn = len(lines[lng-1])
 	}
-	return &textTypeChange{
-		when: time.Now(),
-		forward: []func(){
-			c.actionInsertText(c.cursorRow, c.cursorColumn, lines[0]),
-			c.actionInsertLines(c.cursorRow+1, lines[1:]),
-			c.actionRelocateCursor(newCursorRow, newCursorColumn),
-			c.actionRelocateSelector(newCursorRow, newCursorColumn),
-		},
-		reverse: []func(){
-			c.actionRelocateSelector(c.selectorRow, c.selectorColumn),
-			c.actionRelocateCursor(c.cursorRow, c.cursorColumn),
-			c.actionDeleteLines(c.cursorRow+1, c.cursorRow+len(lines)),
-			c.actionDeleteText(c.cursorRow, c.cursorColumn, c.cursorColumn+len(lines[0])),
-		},
+	forward := []state.Action{
+		c.actionInsertText(c.cursorRow, c.cursorColumn, lines[0]),
+		c.actionInsertLines(c.cursorRow+1, lines[1:]),
+		c.actionRelocateCursor(newCursorRow, newCursorColumn),
+		c.actionRelocateSelector(newCursorRow, newCursorColumn),
 	}
+	reverse := []state.Action{
+		c.actionRelocateSelector(c.selectorRow, c.selectorColumn),
+		c.actionRelocateCursor(c.cursorRow, c.cursorColumn),
+		c.actionDeleteLines(c.cursorRow+1, c.cursorRow+len(lines)),
+		c.actionDeleteText(c.cursorRow, c.cursorColumn, c.cursorColumn+len(lines[0])),
+	}
+	return c.createChange(forward, reverse)
+}
+
+func (c *codeAreaComponent) createChange(forward, reverse []state.Action) state.Change {
+	return state.AccumActionChange(forward, reverse, textTypeAccumulationDuration)
 }
 
 func (c *codeAreaComponent) actionInsertText(row, column int, text []rune) func() {
