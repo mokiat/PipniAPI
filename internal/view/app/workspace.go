@@ -151,6 +151,8 @@ func (c *workspaceComponent) OnKeyboardEvent(element *ui.Element, event ui.Keybo
 		if event.Action == ui.KeyboardActionDown {
 			if selectedEditor := c.mdlWorkspace.SelectedEditor(); selectedEditor != nil {
 				c.closeEditor(selectedEditor, false)
+			} else if len(c.mdlWorkspace.Editors()) == 0 {
+				co.Window(c.Scope()).Close()
 			}
 		}
 		return true
