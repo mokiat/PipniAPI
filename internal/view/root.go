@@ -54,6 +54,12 @@ func (c *rootComponent) OnCreate() {
 			}))
 		}
 	}
+
+	co.Window(c.Scope()).SetCloseInterceptor(c.onCloseRequested)
+}
+
+func (c *rootComponent) OnDelete() {
+	co.Window(c.Scope()).SetCloseInterceptor(c.onCloseRequested)
 }
 
 func (c *rootComponent) Render() co.Instance {
@@ -111,6 +117,24 @@ func (c *rootComponent) OnEvent(event mvc.Event) {
 	case workspace.EditorSelectedEvent:
 		c.selectResourceForEditor(event.Editor)
 	}
+}
+
+func (c *rootComponent) onCloseRequested() bool {
+	if c.mdlWorkspace.IsDirty() {
+		co.OpenOverlay(c.Scope(), co.New(widget.ConfirmationModal, func() {
+			co.WithData(widget.ConfirmationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/warning.png"),
+				Text: "There are unsaved changes!\n\nAre you sure you want to continue?",
+			})
+			co.WithCallbackData(widget.ConfirmationModalCallbackData{
+				OnApply: func() {
+					co.Window(c.Scope()).Close()
+				},
+			})
+		}))
+		return false
+	}
+	return true
 }
 
 func (c *rootComponent) openEditorForRegistryItem(itemID string) {
