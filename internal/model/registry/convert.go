@@ -1,9 +1,10 @@
 package registry
 
 import (
+	"slices"
+
 	"github.com/mokiat/PipniAPI/internal/storage"
 	"github.com/mokiat/gog"
-	"golang.org/x/exp/slices"
 )
 
 func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {

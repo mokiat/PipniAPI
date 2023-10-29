@@ -1,9 +1,10 @@
 package widget
 
 import (
+	"slices"
+
 	"github.com/mokiat/gog"
 	"github.com/mokiat/lacking/ui/state"
-	"golang.org/x/exp/slices"
 )
 
 func (c *editboxComponent) createActionMoveCursor(column int) state.Action {

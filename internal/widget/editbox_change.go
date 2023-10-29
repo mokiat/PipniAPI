@@ -1,8 +1,9 @@
 package widget
 
 import (
+	"slices"
+
 	"github.com/mokiat/lacking/ui/state"
-	"golang.org/x/exp/slices"
 )
 
 func (c *editboxComponent) createChangeInsertSegment(segment []rune) state.Change {

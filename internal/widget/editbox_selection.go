@@ -1,6 +1,6 @@
 package widget
 
-import "golang.org/x/exp/slices"
+import "slices"
 
 func (c *editboxComponent) hasSelection() bool {
 	return c.cursorColumn != c.selectorColumn

@@ -1,6 +1,6 @@
 package widget
 
-import "golang.org/x/exp/slices"
+import "slices"
 
 func (c *codeAreaComponent) hasSelection() bool {
 	return c.cursorRow != c.selectorRow || c.cursorColumn != c.selectorColumn

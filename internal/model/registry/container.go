@@ -1,6 +1,6 @@
 package registry
 
-import "golang.org/x/exp/slices"
+import "slices"
 
 type Container interface {
 	ID() string

@@ -1,8 +1,9 @@
 package workspace
 
 import (
+	"slices"
+
 	"github.com/mokiat/lacking/ui/mvc"
-	"golang.org/x/exp/slices"
 )
 
 func NewModel(eventBus *mvc.EventBus) *Model {

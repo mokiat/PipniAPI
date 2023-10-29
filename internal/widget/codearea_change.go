@@ -1,8 +1,9 @@
 package widget
 
 import (
+	"slices"
+
 	"github.com/mokiat/lacking/ui/state"
-	"golang.org/x/exp/slices"
 )
 
 func (c *codeAreaComponent) createChangeInsertSegment(segment []rune) state.Change {
