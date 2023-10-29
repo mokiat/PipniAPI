@@ -5,20 +5,12 @@ on:
     branches: ["*"] # FIXME master
 
 jobs:
-  compile:
-    name: Compile
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-        include:
-          - os: macos-latest
-            ext: '.exe'
-          - os: ubuntu-latest
-            ext: ''
-    runs-on: ${{ matrix.os }}
+  dist_linux:
+    name: Distribution - Linux
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup Go
         uses: actions/setup-go@v4.1.0
@@ -29,18 +21,36 @@ jobs:
         run: go install github.com/mokiat/lacking-cli/cmd/lacking@v0.1.1
 
       - name: Install Linux Packages
-        if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y libgl1-mesa-dev xorg-dev
 
-      - name: Build MacOS
-        if: matrix.os == 'macos-latest'
-        run: lacking dist macos ./
-
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
+      - name: Build
         run: lacking dist linux ./
 
-      - name: Archive Distribution
+      - name: Linux Distribution
+        uses: actions/upload-artifact@v3
+        with:
+          name: Distribution
+          path: ./dist
+
+  dist_macos:
+    name: Distribution - MacOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4.1.0
+        with:
+          go-version: "1.21"
+
+      - name: Install Lacking CLI
+        run: go install github.com/mokiat/lacking-cli/cmd/lacking@v0.1.1
+
+      - name: Build MacOS
+        run: lacking dist macos ./
+
+      - name: MacOS Distribution
         uses: actions/upload-artifact@v3
         with:
           name: Distribution
