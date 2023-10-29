@@ -2,7 +2,7 @@ name: Distribution
 
 on:
   push:
-    branches: ["*"] # FIXME master
+    branches: [master]
 
 jobs:
   compile:
