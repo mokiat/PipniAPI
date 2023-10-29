@@ -62,6 +62,18 @@ func (c *codeAreaComponent) moveCursorToEndOfDocument() {
 	c.moveCursorToEndOfLine()
 }
 
+func (c *codeAreaComponent) moveCursorToSelectionStart() {
+	fromRow, _ := c.selectedRows()
+	fromColumn, _ := c.selectedColumns(fromRow)
+	c.cursorRow, c.cursorColumn = fromRow, fromColumn
+}
+
+func (c *codeAreaComponent) moveCursorToSelectionEnd() {
+	_, toRow := c.selectedRows()
+	_, toColumn := c.selectedColumns(toRow - 1)
+	c.cursorRow, c.cursorColumn = toRow-1, toColumn
+}
+
 func (c *codeAreaComponent) scrollLeft() {
 	c.offsetX -= codeAreaKeyScrollSpeed
 	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)

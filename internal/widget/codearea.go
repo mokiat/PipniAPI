@@ -265,7 +265,8 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 		c.isDragging = true
 		c.cursorRow = c.findCursorRow(element, event.Y)
 		c.cursorColumn = c.findCursorColumn(element, event.X)
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+		extendSelection := event.Modifiers.Contains(ui.KeyModifierShift)
+		if !extendSelection {
 			c.clearSelection()
 		}
 		element.Invalidate()
@@ -294,68 +295,6 @@ func (c *codeAreaComponent) OnMouseEvent(element *ui.Element, event ui.MouseEven
 	default:
 		return false
 	}
-}
-
-func (c *codeAreaComponent) refreshTextSize() {
-	txtWidth := float32(0.0)
-	for _, line := range c.lines {
-		lineWidth := c.font.LineWidth(line, c.fontSize)
-		txtWidth = max(txtWidth, lineWidth)
-	}
-	txtHeight := c.font.LineHeight(c.fontSize) * float32(len(c.lines))
-
-	c.textWidth = codeAreaTextPaddingLeft + int(math.Ceil(float64(txtWidth))) + codeAreaTextPaddingRight
-	c.textHeight = int(math.Ceil(float64(txtHeight)))
-
-	rulerText := strconv.Itoa(len(c.lines))
-	digitSize := c.font.LineWidth([]rune(rulerText), c.fontSize)
-	rulerTextWidth := int(math.Ceil(float64(digitSize)))
-	c.rulerWidth = codeAreaRulerPaddingLeft + rulerTextWidth + codeAreaRulerPaddingRight
-}
-
-func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
-	bounds := element.ContentBounds()
-
-	textPadding := codeAreaTextPaddingLeft + codeAreaTextPaddingRight
-	availableTextWidth := bounds.Width - c.rulerWidth - textPadding
-	availableTextHeight := bounds.Height
-	c.maxOffsetX = float32(max(c.textWidth-availableTextWidth, 0))
-	c.maxOffsetY = float32(max(c.textHeight-availableTextHeight, 0))
-	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
-}
-
-func (c *codeAreaComponent) findCursorRow(element *ui.Element, y int) int {
-	y += int(c.offsetY)
-	y -= element.Padding().Top
-
-	lineHeight := c.font.LineHeight(c.fontSize)
-	row := y / int(lineHeight)
-	return min(max(0, row), len(c.lines)-1)
-}
-
-func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
-	x += int(c.offsetX)
-	x -= element.Padding().Left
-	x -= c.rulerWidth
-	x -= codeAreaTextPaddingLeft
-
-	bestColumn := 0
-	bestDistance := sprec.Abs(float32(x))
-
-	column := 1
-	offset := float32(0.0)
-	iterator := c.font.LineIterator(c.lines[c.cursorRow], c.fontSize)
-	for iterator.Next() {
-		character := iterator.Character()
-		offset += character.Kern + character.Width
-		if distance := sprec.Abs(float32(x) - offset); distance < bestDistance {
-			bestColumn = column
-			bestDistance = distance
-		}
-		column++
-	}
-	return bestColumn
 }
 
 func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
@@ -432,7 +371,8 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 	switch event.Code {
 
 	case ui.KeyCodeEscape:
-		element.Window().DiscardFocus()
+		c.isDragging = false
+		c.clearSelection()
 		return true
 
 	case ui.KeyCodeArrowUp:
@@ -464,7 +404,9 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			if extendSelection {
 				c.moveCursorLeft()
 			} else {
-				if !c.hasSelection() {
+				if c.hasSelection() {
+					c.moveCursorToSelectionStart()
+				} else {
 					c.moveCursorLeft()
 				}
 				c.clearSelection()
@@ -479,7 +421,9 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 			if extendSelection {
 				c.moveCursorRight()
 			} else {
-				if !c.hasSelection() {
+				if c.hasSelection() {
+					c.moveCursorToSelectionEnd()
+				} else {
 					c.moveCursorRight()
 				}
 				c.clearSelection()
@@ -491,10 +435,10 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.isReadOnly {
 			return false
 		}
-		// TODO: Check if selection
-		c.eraseLeft()
-		if !extendSelection {
-			c.clearSelection()
+		if c.hasSelection() {
+			c.applyChange(c.createChangeDeleteSelection())
+		} else {
+			c.eraseLeft() // FIXME
 		}
 		c.handleChanged()
 		return true
@@ -503,10 +447,10 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.isReadOnly {
 			return false
 		}
-		// TODO: Check if selection
-		c.eraseRight()
-		if !extendSelection {
-			c.clearSelection()
+		if c.hasSelection() {
+			c.applyChange(c.createChangeDeleteSelection())
+		} else {
+			c.eraseRight() // FIXME
 		}
 		c.handleChanged()
 		return true
@@ -546,6 +490,68 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 	c.clearSelection()
 	c.handleChanged()
 	return true
+}
+
+func (c *codeAreaComponent) refreshTextSize() {
+	txtWidth := float32(0.0)
+	for _, line := range c.lines {
+		lineWidth := c.font.LineWidth(line, c.fontSize)
+		txtWidth = max(txtWidth, lineWidth)
+	}
+	txtHeight := c.font.LineHeight(c.fontSize) * float32(len(c.lines))
+
+	c.textWidth = codeAreaTextPaddingLeft + int(math.Ceil(float64(txtWidth))) + codeAreaTextPaddingRight
+	c.textHeight = int(math.Ceil(float64(txtHeight)))
+
+	rulerText := strconv.Itoa(len(c.lines))
+	digitSize := c.font.LineWidth([]rune(rulerText), c.fontSize)
+	rulerTextWidth := int(math.Ceil(float64(digitSize)))
+	c.rulerWidth = codeAreaRulerPaddingLeft + rulerTextWidth + codeAreaRulerPaddingRight
+}
+
+func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
+	bounds := element.ContentBounds()
+
+	textPadding := codeAreaTextPaddingLeft + codeAreaTextPaddingRight
+	availableTextWidth := bounds.Width - c.rulerWidth - textPadding
+	availableTextHeight := bounds.Height
+	c.maxOffsetX = float32(max(c.textWidth-availableTextWidth, 0))
+	c.maxOffsetY = float32(max(c.textHeight-availableTextHeight, 0))
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
+}
+
+func (c *codeAreaComponent) findCursorRow(element *ui.Element, y int) int {
+	y += int(c.offsetY)
+	y -= element.Padding().Top
+
+	lineHeight := c.font.LineHeight(c.fontSize)
+	row := y / int(lineHeight)
+	return min(max(0, row), len(c.lines)-1)
+}
+
+func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
+	x += int(c.offsetX)
+	x -= element.Padding().Left
+	x -= c.rulerWidth
+	x -= codeAreaTextPaddingLeft
+
+	bestColumn := 0
+	bestDistance := sprec.Abs(float32(x))
+
+	column := 1
+	offset := float32(0.0)
+	iterator := c.font.LineIterator(c.lines[c.cursorRow], c.fontSize)
+	for iterator.Next() {
+		character := iterator.Character()
+		offset += character.Kern + character.Width
+		if distance := sprec.Abs(float32(x) - offset); distance < bestDistance {
+			bestColumn = column
+			bestDistance = distance
+		}
+		column++
+	}
+	return bestColumn
 }
 
 func (c *codeAreaComponent) appendCharacter(ch rune) {

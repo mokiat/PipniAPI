@@ -255,7 +255,8 @@ func (c *editboxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 		}
 		c.isDragging = true
 		c.cursorColumn = c.findCursorColumn(element, event.X)
-		if !event.Modifiers.Contains(ui.KeyModifierShift) {
+		extendSelection := event.Modifiers.Contains(ui.KeyModifierShift)
+		if !extendSelection {
 			c.clearSelection()
 		}
 		element.Invalidate()
@@ -286,6 +287,8 @@ func (c *editboxComponent) OnMouseEvent(element *ui.Element, event ui.MouseEvent
 
 func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.KeyboardEvent) bool {
 	os := element.Window().Platform().OS()
+	extendSelection := event.Modifiers.Contains(ui.KeyModifierShift)
+
 	if shortcuts.IsClose(os, event) {
 		return false // propagate up
 	}
@@ -319,7 +322,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 	if shortcuts.IsJumpToLineStart(os, event) {
 		if !c.isReadOnly {
 			c.moveCursorToStartOfLine()
-			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			if !extendSelection {
 				c.clearSelection()
 			}
 		}
@@ -328,7 +331,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 	if shortcuts.IsJumpToLineEnd(os, event) {
 		if !c.isReadOnly {
 			c.moveCursorToEndOfLine()
-			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			if !extendSelection {
 				c.clearSelection()
 			}
 		}
@@ -345,7 +348,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 	case ui.KeyCodeArrowUp:
 		if !c.isReadOnly {
 			c.moveCursorToStartOfLine()
-			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			if !extendSelection {
 				c.clearSelection()
 			}
 		}
@@ -354,7 +357,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 	case ui.KeyCodeArrowDown:
 		if !c.isReadOnly {
 			c.moveCursorToEndOfLine()
-			if !event.Modifiers.Contains(ui.KeyModifierShift) {
+			if !extendSelection {
 				c.clearSelection()
 			}
 		}
@@ -364,7 +367,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		if c.isReadOnly {
 			c.scrollLeft()
 		} else {
-			if event.Modifiers.Contains(ui.KeyModifierShift) {
+			if extendSelection {
 				c.moveCursorLeft()
 			} else {
 				if c.hasSelection() {
@@ -381,7 +384,7 @@ func (c *editboxComponent) onKeyboardPressEvent(element *ui.Element, event ui.Ke
 		if c.isReadOnly {
 			c.scrollRight()
 		} else {
-			if event.Modifiers.Contains(ui.KeyModifierShift) {
+			if extendSelection {
 				c.moveCursorRight()
 			} else {
 				if c.hasSelection() {
