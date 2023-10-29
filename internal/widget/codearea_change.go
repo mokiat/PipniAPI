@@ -1,6 +1,9 @@
 package widget
 
-import "github.com/mokiat/lacking/ui/state"
+import (
+	"github.com/mokiat/lacking/ui/state"
+	"golang.org/x/exp/slices"
+)
 
 func (c *codeAreaComponent) createChangeInsertSegment(segment []rune) state.Change {
 	segmentLen := len(segment)
@@ -68,6 +71,74 @@ func (c *codeAreaComponent) createChangeReplaceSelection(replacement [][]rune) s
 	reverse := []state.Action{
 		c.createActionDeleteSpan(fromRow, fromRowFromColumn, newToRow, newToColumn),
 		c.createActionInsertSpan(fromRow, fromRowFromColumn, deletedLines),
+		c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
+		c.createActionMoveSelector(c.selectorRow, c.selectorColumn),
+	}
+	return c.createChange(forward, reverse)
+}
+
+func (c *codeAreaComponent) createChangeDeleteCharacterLeft() state.Change {
+	if c.cursorColumn == 0 {
+		if c.cursorRow == 0 {
+			return nil // can't delete left or up
+		}
+		prevRow := c.cursorRow - 1
+		prevRowLength := len(c.lines[prevRow])
+		forward := []state.Action{
+			c.createActionMoveCursor(prevRow, prevRowLength),
+			c.createActionMoveSelector(prevRow, prevRowLength),
+			c.createActionDeleteSpan(prevRow, prevRowLength, c.cursorRow+1, 0),
+		}
+		reverse := []state.Action{
+			c.createActionInsertSpan(prevRow, prevRowLength, [][]rune{{}, {}}),
+			c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
+			c.createActionMoveSelector(c.selectorRow, c.selectorColumn),
+		}
+		return c.createChange(forward, reverse)
+	}
+
+	deletedSegment := slices.Clone(c.lines[c.cursorRow][c.cursorColumn-1 : c.cursorColumn])
+	forward := []state.Action{
+		c.createActionMoveCursor(c.cursorRow, c.cursorColumn-1),
+		c.createActionMoveSelector(c.cursorRow, c.cursorColumn-1),
+		c.createActionDeleteSegment(c.cursorRow, c.cursorColumn-1, c.cursorColumn),
+	}
+	reverse := []state.Action{
+		c.createActionInsertSegment(c.cursorRow, c.cursorColumn-1, deletedSegment),
+		c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
+		c.createActionMoveSelector(c.selectorRow, c.selectorColumn),
+	}
+	return c.createChange(forward, reverse)
+}
+
+func (c *codeAreaComponent) createChangeDeleteCharacterRight() state.Change {
+	if c.cursorColumn == len(c.lines[c.cursorRow]) {
+		if c.cursorRow == len(c.lines)-1 {
+			return nil // can't delete right or down
+		}
+		currentRowLength := len(c.lines[c.cursorRow])
+		nextRow := c.cursorRow + 1
+		forward := []state.Action{
+			c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
+			c.createActionMoveSelector(c.cursorRow, c.cursorColumn),
+			c.createActionDeleteSpan(c.cursorRow, currentRowLength, nextRow+1, 0),
+		}
+		reverse := []state.Action{
+			c.createActionInsertSpan(c.cursorRow, currentRowLength, [][]rune{{}, {}}),
+			c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
+			c.createActionMoveSelector(c.selectorRow, c.selectorColumn),
+		}
+		return c.createChange(forward, reverse)
+	}
+
+	deletedSegment := slices.Clone(c.lines[c.cursorRow][c.cursorColumn : c.cursorColumn+1])
+	forward := []state.Action{
+		c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
+		c.createActionMoveSelector(c.cursorRow, c.cursorColumn),
+		c.createActionDeleteSegment(c.cursorRow, c.cursorColumn, c.cursorColumn+1),
+	}
+	reverse := []state.Action{
+		c.createActionInsertSegment(c.cursorRow, c.cursorColumn, deletedSegment),
 		c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
 		c.createActionMoveSelector(c.selectorRow, c.selectorColumn),
 	}

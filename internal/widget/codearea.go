@@ -14,7 +14,6 @@ import (
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/state"
 	"github.com/mokiat/lacking/ui/std"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -438,7 +437,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.hasSelection() {
 			c.applyChange(c.createChangeDeleteSelection())
 		} else {
-			c.eraseLeft() // FIXME
+			c.applyChange(c.createChangeDeleteCharacterLeft())
 		}
 		c.handleChanged()
 		return true
@@ -450,7 +449,7 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.hasSelection() {
 			c.applyChange(c.createChangeDeleteSelection())
 		} else {
-			c.eraseRight() // FIXME
+			c.applyChange(c.createChangeDeleteCharacterRight())
 		}
 		c.handleChanged()
 		return true
@@ -527,37 +526,6 @@ func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
 		column++
 	}
 	return bestColumn
-}
-
-func (c *codeAreaComponent) eraseLeft() {
-	if c.cursorColumn > 0 {
-		line := c.lines[c.cursorRow]
-		line = slices.Delete(line, c.cursorColumn-1, c.cursorColumn)
-		c.lines[c.cursorRow] = line
-		c.cursorColumn--
-	} else {
-		if c.cursorRow > 0 {
-			movedRow := c.cursorRow
-			c.moveCursorUp()
-			c.moveCursorToEndOfLine()
-			c.lines[movedRow-1] = append(c.lines[movedRow-1], c.lines[movedRow]...)
-			c.lines = slices.Delete(c.lines, movedRow, movedRow+1)
-		}
-	}
-}
-
-func (c *codeAreaComponent) eraseRight() {
-	if c.cursorColumn < len(c.lines[c.cursorRow]) {
-		line := c.lines[c.cursorRow]
-		line = slices.Delete(line, c.cursorColumn, c.cursorColumn+1)
-		c.lines[c.cursorRow] = line
-	} else {
-		if c.cursorRow < len(c.lines)-1 {
-			movedRow := c.cursorRow + 1
-			c.lines[movedRow-1] = append(c.lines[movedRow-1], c.lines[movedRow]...)
-			c.lines = slices.Delete(c.lines, movedRow, movedRow+1)
-		}
-	}
 }
 
 func (c *codeAreaComponent) refreshTextSize() {
