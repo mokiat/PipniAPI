@@ -32,18 +32,26 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y libgl1-mesa-dev xorg-dev
 
+      - name: Prepare Target Dir
+        run: mkdir -p target
+
       - name: Build MacOS
         if: matrix.os == 'macos-latest'
         run: |
           lacking dist macos ./
-          zip -r 'dist/macos/PipniAPI.zip' 'dist/macos/Pipni API.app'
+          cd dist/macos
+          zip -r 'PipniAPI.zip' 'PipniAPI.app'
+          cd -
+          mv dist/macos/PipniAPI.zip target/
 
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'
-        run: lacking dist linux ./
+        run: |
+          lacking dist linux ./
+          mv dist/linux/*.deb target/
 
       - name: Archive Distribution
         uses: actions/upload-artifact@v3
         with:
           name: Distribution
-          path: ./dist
+          path: ./target
