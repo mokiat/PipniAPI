@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
-	"github.com/mokiat/PipniAPI/internal/view/widget"
+	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
@@ -91,15 +91,15 @@ func (c *editorComponent) Render() co.Instance {
 				})
 			}))
 
-			co.WithChild("uri", co.New(std.Editbox, func() {
+			co.WithChild("uri", co.New(widget.EditBox, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentCenter,
 				})
-				co.WithData(std.EditboxData{
+				co.WithData(widget.EditBoxData{
 					Text: c.mdlEditor.URI(),
 				})
-				co.WithCallbackData(std.EditboxCallbackData{
-					OnChanged: func(text string) {
+				co.WithCallbackData(widget.EditBoxCallbackData{
+					OnChange: func(text string) {
 						c.changeURI(text)
 					},
 				})
@@ -178,9 +178,18 @@ func (c *editorComponent) Render() co.Instance {
 
 				switch c.mdlEditor.RequestTab() {
 				case endpoint.EditorTabBody:
-					// TODO
+					co.WithChild("body", co.New(RequestBody, func() {
+						co.WithData(RequestBodyData{
+							EditorModel: c.mdlEditor,
+						})
+					}))
+
 				case endpoint.EditorTabHeaders:
-					// TODO
+					co.WithChild("headers", co.New(RequestHeaders, func() {
+						co.WithData(RequestHeadersData{
+							EditorModel: c.mdlEditor,
+						})
+					}))
 				}
 			}))
 
@@ -235,7 +244,7 @@ func (c *editorComponent) Render() co.Instance {
 							Icon:     co.OpenImage(c.Scope(), "images/stats.png"),
 							Text:     "Stats",
 							Selected: c.mdlEditor.ResponseTab() == endpoint.EditorTabStats,
-							Enabled:  opt.V(false), // TODO: To be added
+							Enabled:  opt.V(false),
 						})
 						co.WithCallbackData(std.ToolbarButtonCallbackData{
 							OnClick: func() {
@@ -249,19 +258,19 @@ func (c *editorComponent) Render() co.Instance {
 				case endpoint.EditorTabBody:
 					co.WithChild("body", co.New(ResponseBody, func() {
 						co.WithData(ResponseBodyData{
-							Text: c.mdlEditor.ResponseBody(),
+							EditorModel: c.mdlEditor,
 						})
 					}))
 
 				case endpoint.EditorTabHeaders:
 					co.WithChild("headers", co.New(ResponseHeaders, func() {
 						co.WithData(ResponseHeadersData{
-							Headers: c.mdlEditor.ResponseHeaders(),
+							EditorModel: c.mdlEditor,
 						})
 					}))
 
 				case endpoint.EditorTabStats:
-					// TODO
+					// TODO: To be added
 				}
 			}))
 		}))
@@ -269,24 +278,32 @@ func (c *editorComponent) Render() co.Instance {
 }
 
 func (c *editorComponent) OnEvent(event mvc.Event) {
-	switch event.(type) {
+	switch event := event.(type) {
 	case endpoint.MethodChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	case endpoint.URIChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	case endpoint.RequestTabChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	case endpoint.ResponseTabChangedEvent:
-		c.Invalidate()
+		if event.Editor == c.mdlEditor {
+			c.Invalidate()
+		}
 	}
 }
 
 func (c *editorComponent) changeMethod(method string) {
-	c.mdlEditor.ChangeMethod(method)
+	c.mdlEditor.SetMethod(method)
 }
 
 func (c *editorComponent) changeURI(uri string) {
-	c.mdlEditor.ChangeURI(uri)
+	c.mdlEditor.SetURI(uri)
 }
 
 func (c *editorComponent) changeRequestTab(tab endpoint.EditorTab) {
@@ -325,18 +342,18 @@ func (c *editorComponent) makeRequest() {
 func (c *editorComponent) createRequest() *APIRequest {
 	return &APIRequest{
 		Method:  c.mdlEditor.Method(),
-		URI:     c.mdlEditor.URI(),
-		Headers: c.mdlEditor.RequestHeaders(),
-		Body:    c.mdlEditor.RequestBody(),
+		URI:     c.mdlEditor.HTTPURI(),
+		Headers: c.mdlEditor.HTTPRequestHeaders(),
+		Body:    c.mdlEditor.HTTPRequestBody(),
 	}
 }
 
 func (c *editorComponent) handleResponse(response *APIResponse, err error) {
 	if err == nil {
 		c.mdlEditor.SetResponseBody(response.Body)
-		c.mdlEditor.SetResponseHeaders(response.Headers)
+		c.mdlEditor.SetHTTPResponseHeaders(response.Headers)
 	} else {
-		log.Info("API call error: %v", err)
+		log.Warn("API call error: %v", err)
 		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
 			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),

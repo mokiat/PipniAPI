@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -10,7 +11,9 @@ import (
 
 var Editor = co.Define(&editorComponent{})
 
-type EditorData struct{}
+type EditorData struct {
+	EditorModel *workflow.Editor
+}
 
 type editorComponent struct {
 	co.BaseComponent

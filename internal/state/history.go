@@ -29,7 +29,9 @@ func (h *History) LastChange() Change {
 }
 
 func (h *History) Do(change Change) {
-	h.undoStack.Push(change)
+	if extChange, ok := h.extendableChange(); !ok || !extChange.Extend(change) {
+		h.undoStack.Push(change)
+	}
 	h.redoStack.Clear()
 	change.Apply()
 }
@@ -52,4 +54,16 @@ func (h *History) Redo() {
 	change := h.redoStack.Pop()
 	h.undoStack.Push(change)
 	change.Apply()
+}
+
+func (h *History) extendableChange() (ExtendableChange, bool) {
+	if h.undoStack.IsEmpty() {
+		return nil, false
+	}
+	change := h.undoStack.Peek()
+	extendable, ok := change.(ExtendableChange)
+	if !ok {
+		return nil, false
+	}
+	return extendable, true
 }

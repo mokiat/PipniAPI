@@ -2,6 +2,9 @@ package view
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
@@ -9,7 +12,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	appview "github.com/mokiat/PipniAPI/internal/view/app"
-	"github.com/mokiat/PipniAPI/internal/view/widget"
+	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/log"
 	co "github.com/mokiat/lacking/ui/component"
@@ -24,43 +27,39 @@ type rootComponent struct {
 	co.BaseComponent
 
 	eventBus     *mvc.EventBus
-	mdlContext   *context.Model
 	mdlRegistry  *registry.Model
 	mdlWorkspace *workspace.Model
 }
 
 func (c *rootComponent) OnCreate() {
-	var loadErr error
-
 	c.eventBus = co.TypedValue[*mvc.EventBus](c.Scope())
+	c.mdlWorkspace = workspace.NewModel(c.eventBus)
 
-	c.mdlContext = context.NewModel(c.eventBus, "context.json")
-	if err := c.mdlContext.Load(); err != nil {
-		c.mdlContext.Clear() // start with blank
-		if !errors.Is(err, context.ErrContextNotFound) {
-			loadErr = errors.Join(loadErr, err)
-		}
+	configDir, err := c.configDir()
+	if err != nil {
+		log.Error("Error preparing config dir: %v", err)
+		configDir = ""
 	}
 
-	c.mdlRegistry = registry.NewModel(c.eventBus, "registry.json")
+	c.mdlRegistry = registry.NewModel(c.eventBus, filepath.Join(configDir, "registry.json"))
 	if err := c.mdlRegistry.Load(); err != nil {
 		c.mdlRegistry.Clear() // start with blank
 		if !errors.Is(err, registry.ErrRegistryNotFound) {
-			loadErr = errors.Join(loadErr, err)
+			log.Error("Error loading model: %v", err)
+			co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+				co.WithData(widget.NotificationModalData{
+					Icon: co.OpenImage(c.Scope(), "images/error.png"),
+					Text: "The program encountered an error.\n\nSome of the state could not be restored.",
+				})
+			}))
 		}
 	}
 
-	c.mdlWorkspace = workspace.NewModel(c.eventBus)
+	co.Window(c.Scope()).SetCloseInterceptor(c.onCloseRequested)
+}
 
-	if loadErr != nil {
-		log.Error("Error loading models: %v", loadErr)
-		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
-			co.WithData(widget.NotificationModalData{
-				Icon: co.OpenImage(c.Scope(), "images/error.png"),
-				Text: "The program encountered an error.\n\nSome of the state could not be restored.",
-			})
-		}))
-	}
+func (c *rootComponent) OnDelete() {
+	co.Window(c.Scope()).SetCloseInterceptor(c.onCloseRequested)
 }
 
 func (c *rootComponent) Render() co.Instance {
@@ -94,9 +93,7 @@ func (c *rootComponent) Render() co.Instance {
 					Width:               opt.V(300),
 				})
 				co.WithData(appview.DrawerData{
-					ContextModel:   c.mdlContext,
-					RegistryModel:  c.mdlRegistry,
-					WorkspaceModel: c.mdlWorkspace,
+					RegistryModel: c.mdlRegistry,
 				})
 			}))
 
@@ -107,7 +104,6 @@ func (c *rootComponent) Render() co.Instance {
 				})
 				co.WithData(appview.WorkspaceData{
 					WorkspaceModel: c.mdlWorkspace,
-					ContextModel:   c.mdlContext,
 				})
 			}))
 		}))
@@ -123,6 +119,24 @@ func (c *rootComponent) OnEvent(event mvc.Event) {
 	}
 }
 
+func (c *rootComponent) onCloseRequested() bool {
+	if c.mdlWorkspace.IsDirty() {
+		co.OpenOverlay(c.Scope(), co.New(widget.ConfirmationModal, func() {
+			co.WithData(widget.ConfirmationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/warning.png"),
+				Text: "There are unsaved changes!\n\nAre you sure you want to continue?",
+			})
+			co.WithCallbackData(widget.ConfirmationModalCallbackData{
+				OnApply: func() {
+					co.Window(c.Scope()).Close()
+				},
+			})
+		}))
+		return false
+	}
+	return true
+}
+
 func (c *rootComponent) openEditorForRegistryItem(itemID string) {
 	if editor := c.mdlWorkspace.FindEditor(itemID); editor != nil {
 		c.mdlWorkspace.SetSelectedID(editor.ID())
@@ -131,6 +145,8 @@ func (c *rootComponent) openEditorForRegistryItem(itemID string) {
 
 	resource := c.mdlRegistry.Root().FindResource(itemID)
 	switch resource := resource.(type) {
+	case *registry.Context:
+		c.mdlWorkspace.AppendEditor(context.NewEditor(c.eventBus, c.mdlRegistry, resource))
 	case *registry.Endpoint:
 		c.mdlWorkspace.AppendEditor(endpoint.NewEditor(c.eventBus, c.mdlRegistry, resource))
 	case *registry.Workflow:
@@ -144,4 +160,18 @@ func (c *rootComponent) selectResourceForEditor(editor workspace.Editor) {
 	} else {
 		c.mdlRegistry.SetSelectedID("")
 	}
+}
+
+func (c *rootComponent) configDir() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("error determining config dir: %w", err)
+	}
+
+	dir = filepath.Join(dir, "PipniAPI")
+	if err := os.MkdirAll(dir, 0775); err != nil {
+		return "", fmt.Errorf("error creating config folder: %w", err)
+	}
+
+	return dir, nil
 }

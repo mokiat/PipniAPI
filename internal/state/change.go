@@ -5,6 +5,10 @@ type Change interface {
 	Revert()
 }
 
+type ExtendableChange interface {
+	Extend(change Change) bool
+}
+
 func FuncChange(apply, revert func()) Change {
 	return &funcChange{
 		apply:  apply,

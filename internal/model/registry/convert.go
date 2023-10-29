@@ -1,11 +1,10 @@
 package registry
 
 import (
-	"net/http"
+	"slices"
 
 	"github.com/mokiat/PipniAPI/internal/storage"
 	"github.com/mokiat/gog"
-	"golang.org/x/exp/slices"
 )
 
 func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
@@ -18,6 +17,22 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 		resources: make([]Resource, 0, len(dtoRegistry.Endpoints)+len(dtoRegistry.Workflows)),
 	}
 
+	for _, dtoContext := range dtoRegistry.Contexts {
+		positions[dtoContext.ID] = dtoContext.Position
+		root.resources = append(root.resources, &Context{
+			id:        dtoContext.ID,
+			name:      dtoContext.Name,
+			container: root,
+
+			properties: gog.Map(dtoContext.Properties, func(prop storage.PropertyDTO) gog.KV[string, string] {
+				return gog.KV[string, string]{
+					Key:   prop.Name,
+					Value: prop.Value,
+				}
+			}),
+		})
+	}
+
 	for _, dtoEndpoint := range dtoRegistry.Endpoints {
 		positions[dtoEndpoint.ID] = dtoEndpoint.Position
 		root.resources = append(root.resources, &Endpoint{
@@ -27,13 +42,12 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 
 			method: dtoEndpoint.Method,
 			uri:    dtoEndpoint.URI,
-			headers: func() http.Header {
-				result := make(http.Header)
-				for _, header := range dtoEndpoint.Headers {
-					result.Add(header.Name, header.Value)
+			headers: gog.Map(dtoEndpoint.Headers, func(header storage.HeaderDTO) gog.KV[string, string] {
+				return gog.KV[string, string]{
+					Key:   header.Name,
+					Value: header.Value,
 				}
-				return result
-			}(),
+			}),
 			body: gog.ValueOf(dtoEndpoint.Body, ""),
 		})
 	}
@@ -44,7 +58,6 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 			id:        dtoWorkflow.ID,
 			name:      dtoWorkflow.Name,
 			container: root,
-			// TODO: more fields
 		})
 	}
 
@@ -54,12 +67,29 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 
 	m.root = root
 	m.selectedID = ""
+	m.activeContextID = dtoRegistry.ActiveContextID
 }
 
 func (m *Model) saveToDTO() *storage.RegistryDTO {
-	result := &storage.RegistryDTO{}
+	result := &storage.RegistryDTO{
+		ActiveContextID: m.activeContextID,
+	}
 	for i, resource := range m.root.Resources() {
 		switch resource := resource.(type) {
+		case *Context:
+			result.Contexts = append(result.Contexts, storage.ContextDTO{
+				ID:       resource.id,
+				FolderID: nil, // Currently only root
+				Name:     resource.name,
+				Position: i,
+
+				Properties: gog.Map(resource.properties, func(kv gog.KV[string, string]) storage.PropertyDTO {
+					return storage.PropertyDTO{
+						Name:  kv.Key,
+						Value: kv.Value,
+					}
+				}),
+			})
 		case *Endpoint:
 			result.Endpoints = append(result.Endpoints, storage.EndpointDTO{
 				ID:       resource.id,
@@ -69,18 +99,12 @@ func (m *Model) saveToDTO() *storage.RegistryDTO {
 
 				Method: resource.method,
 				URI:    resource.uri,
-				Headers: func() []storage.HeaderDTO {
-					var result []storage.HeaderDTO
-					for name, values := range resource.headers {
-						for _, value := range values {
-							result = append(result, storage.HeaderDTO{
-								Name:  name,
-								Value: value,
-							})
-						}
+				Headers: gog.Map(resource.headers, func(kv gog.KV[string, string]) storage.HeaderDTO {
+					return storage.HeaderDTO{
+						Name:  kv.Key,
+						Value: kv.Value,
 					}
-					return result
-				}(),
+				}),
 				Body: &resource.body,
 			})
 		case *Workflow:

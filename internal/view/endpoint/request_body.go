@@ -7,38 +7,44 @@ import (
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
-var ResponseBody = mvc.EventListener(co.Define(&responseBodyComponent{}))
+var RequestBody = mvc.EventListener(co.Define(&requestBodyComponent{}))
 
-type ResponseBodyData struct {
+type RequestBodyData struct {
 	EditorModel *endpoint.Editor
 }
 
-type responseBodyComponent struct {
+type requestBodyComponent struct {
 	co.BaseComponent
 
 	mdlEditor *endpoint.Editor
 }
 
-func (c *responseBodyComponent) OnUpsert() {
-	data := co.GetData[ResponseBodyData](c.Properties())
+func (c *requestBodyComponent) OnUpsert() {
+	data := co.GetData[RequestBodyData](c.Properties())
 	c.mdlEditor = data.EditorModel
 }
 
-func (c *responseBodyComponent) Render() co.Instance {
+func (c *requestBodyComponent) Render() co.Instance {
 	return co.New(widget.CodeArea, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(widget.CodeAreaData{
-			ReadOnly: true,
-			Code:     c.mdlEditor.ResponseBody(),
+			Code: c.mdlEditor.RequestBody(),
+		})
+		co.WithCallbackData(widget.CodeAreaCallbackData{
+			OnChange: c.changeRequestBody,
 		})
 	})
 }
 
-func (c *responseBodyComponent) OnEvent(event mvc.Event) {
+func (c *requestBodyComponent) OnEvent(event mvc.Event) {
 	switch event := event.(type) {
 	case endpoint.ResponseBodyChangedEvent:
 		if event.Editor == c.mdlEditor {
 			c.Invalidate()
 		}
 	}
+}
+
+func (c *requestBodyComponent) changeRequestBody(body string) {
+	c.mdlEditor.SetRequestBody(body)
 }

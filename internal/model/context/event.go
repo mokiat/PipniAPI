@@ -1,10 +1,5 @@
 package context
 
-type StructureChangedEvent struct {
-	Model *Model
-}
-
-type EnvironmentSelectedEvent struct {
-	Model       *Model
-	Environment *Environment
+type PropertiesChangedEvent struct {
+	Editor *Editor
 }

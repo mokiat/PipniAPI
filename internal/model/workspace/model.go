@@ -1,8 +1,9 @@
 package workspace
 
 import (
+	"slices"
+
 	"github.com/mokiat/lacking/ui/mvc"
-	"golang.org/x/exp/slices"
 )
 
 func NewModel(eventBus *mvc.EventBus) *Model {
@@ -93,4 +94,10 @@ func (m *Model) SetSelectedID(id string) {
 
 func (m *Model) SelectedEditor() Editor {
 	return m.FindEditor(m.selectedID)
+}
+
+func (m Model) IsDirty() bool {
+	return slices.ContainsFunc(m.editors, func(editor Editor) bool {
+		return editor.CanSave()
+	})
 }

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
+	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -91,6 +92,20 @@ func (c *modalComponent) Render() co.Instance {
 						},
 					})
 				}))
+
+				co.WithChild("context", co.New(std.ToolbarButton, func() {
+					co.WithData(std.ToolbarButtonData{
+						Icon:     co.OpenImage(c.Scope(), "images/context.png"),
+						Text:     "Context",
+						Selected: c.kind == registry.ResourceKindContext,
+						Enabled:  opt.V(c.canChangeKind),
+					})
+					co.WithCallbackData(std.ToolbarButtonCallbackData{
+						OnClick: func() {
+							c.setKind(registry.ResourceKindContext)
+						},
+					})
+				}))
 			}))
 
 			co.WithChild("content", co.New(std.Element, func() {
@@ -128,16 +143,20 @@ func (c *modalComponent) Render() co.Instance {
 						})
 					}))
 
-					co.WithChild("editbox", co.New(std.Editbox, func() {
+					co.WithChild("editbox", co.New(widget.EditBox, func() {
 						co.WithLayoutData(layout.Data{
 							HorizontalAlignment: layout.HorizontalAlignmentCenter,
 						})
-						co.WithData(std.EditboxData{
+						co.WithData(widget.EditBoxData{
 							Text: c.name,
 						})
-						co.WithCallbackData(std.EditboxCallbackData{
-							OnChanged: func(text string) {
+						co.WithCallbackData(widget.EditBoxCallbackData{
+							OnChange: func(text string) {
 								c.setName(text)
+							},
+							OnSubmit: func(text string) {
+								c.setName(text)
+								c.onGo()
 							},
 						})
 					}))
@@ -196,12 +215,14 @@ func (c *modalComponent) Render() co.Instance {
 }
 
 func (c *modalComponent) resourceInfo(kind registry.ResourceKind) string {
-	// TODO: Manual text wrapping won't be needed here once a TextArea is used.
+	// NOTE: Manual text wrapping won't be needed here once a TextArea is used.
 	switch kind {
 	case registry.ResourceKindEndpoint:
 		return "An Endpoint resource represents a specific RESTful endpoint\ninvocation.\n\nEnter a name to properly reflect the endpoint's purpose."
 	case registry.ResourceKindWorkflow:
 		return "A Workflow can be used to orchestrate the invocation of a\nnumber of Endpoint resources by passing data between them\nand controlling the call order.\n\nEnter a name to properly reflect the workflow's purpose."
+	case registry.ResourceKindContext:
+		return "A Context can be used to specify reusable parameters."
 	default:
 		return ""
 	}

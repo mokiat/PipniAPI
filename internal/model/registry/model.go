@@ -3,10 +3,12 @@ package registry
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/google/uuid"
 	"github.com/mokiat/PipniAPI/internal/storage"
+	"github.com/mokiat/gog"
 	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui/mvc"
 )
@@ -30,12 +32,47 @@ type Model struct {
 	eventBus    *mvc.EventBus
 	cfgFileName string
 
-	root       Container
-	selectedID string
+	root            Container
+	selectedID      string
+	activeContextID string
 }
 
 func (m *Model) Root() Container {
 	return m.root
+}
+
+func (m *Model) AllResources() []Resource {
+	return m.root.AllResources()
+}
+
+func (m *Model) ActiveContext() *Context {
+	contextResources := gog.Select(m.AllResources(), func(resource Resource) bool {
+		_, ok := resource.(*Context)
+		return ok
+	})
+	contexts := gog.Map(contextResources, func(resource Resource) *Context {
+		return resource.(*Context)
+	})
+	result, ok := gog.FindFunc(contexts, func(context *Context) bool {
+		return context.ID() == m.activeContextID
+	})
+	if !ok {
+		return nil
+	}
+	return result
+}
+
+func (m *Model) ActiveContextID() string {
+	return m.activeContextID
+}
+
+func (m *Model) SetActiveContextID(activeID string) {
+	if activeID != m.activeContextID {
+		m.activeContextID = activeID
+		m.eventBus.Notify(RegistryActiveContextChangedEvent{
+			Registry: m,
+		})
+	}
 }
 
 func (m *Model) SelectedID() string {
@@ -60,7 +97,7 @@ func (m *Model) CanMoveUp(resource Resource) bool {
 	if resource == nil {
 		return false
 	}
-	// TODO: Once there is nesting of containers, this should be more
+	// NOTE: Once there is nesting of containers, this should be more
 	// complicated and consider the whole tree and not just the container
 	// (e.g. can the resource move to an upper sibling container)
 	container := resource.Container()
@@ -83,7 +120,7 @@ func (m *Model) CanMoveDown(resource Resource) bool {
 	if resource == nil {
 		return false
 	}
-	// TODO: Once there is nesting of containers, this should be more
+	// NOTE: Once there is nesting of containers, this should be more
 	// complicated and consider the whole tree and not just the container
 	// (e.g. can the resource move to a lower sibling container)
 	container := resource.Container()
@@ -110,14 +147,18 @@ func (m *Model) CreateResource(parent Container, name string, kind ResourceKind)
 			container: parent,
 			id:        uuid.Must(uuid.NewRandom()).String(),
 			name:      name,
-			// TODO: Initialize more props. Or maybe consider a newEndpoint function
 		}
 	case ResourceKindWorkflow:
 		resource = &Workflow{
 			container: parent,
 			id:        uuid.Must(uuid.NewRandom()).String(),
 			name:      name,
-			// TODO: Initialize more props. Or maybe consider a newWorkflow function
+		}
+	case ResourceKindContext:
+		resource = &Context{
+			container: parent,
+			id:        uuid.Must(uuid.NewRandom()).String(),
+			name:      name,
 		}
 	default:
 		log.Warn("Unknown resource kind %q", kind)
@@ -200,12 +241,72 @@ func (m *Model) Save() error {
 }
 
 func (m *Model) Clear() {
-	// IDEA: Consider defaulting to a working example.
 	m.root = &standardContainer{
 		id:   RootContainerID,
 		name: "Root",
 	}
+
+	contextID := uuid.NewString()
+	m.root.AppendResource(&Context{
+		id:        contextID,
+		name:      "REQRES",
+		container: m.root,
+		properties: []gog.KV[string, string]{
+			{
+				Key:   "host",
+				Value: "reqres.in",
+			},
+		},
+	})
+
+	m.root.AppendResource(&Endpoint{
+		id:     uuid.NewString(),
+		name:   "Create User",
+		method: http.MethodPost,
+		uri:    "https://{{.host}}/api/users",
+		headers: []gog.KV[string, string]{
+			{
+				Key:   "Content-Type",
+				Value: "application/json",
+			},
+		},
+		container: m.root,
+		body:      "{\"name\":\"morpheus\",\"job\":\"leader\"}",
+	})
+
+	m.root.AppendResource(&Endpoint{
+		id:        uuid.NewString(),
+		name:      "Get User",
+		method:    http.MethodGet,
+		uri:       "https://{{.host}}/api/users/2",
+		headers:   []gog.KV[string, string]{},
+		container: m.root,
+		body:      "",
+	})
+
+	m.root.AppendResource(&Endpoint{
+		id:        uuid.NewString(),
+		name:      "List Users",
+		method:    http.MethodGet,
+		uri:       "https://{{.host}}/api/users",
+		headers:   []gog.KV[string, string]{},
+		container: m.root,
+		body:      "",
+	})
+
+	m.root.AppendResource(&Endpoint{
+		id:        uuid.NewString(),
+		name:      "Delete User",
+		method:    http.MethodDelete,
+		uri:       "https://{{.host}}/api/users/2",
+		headers:   []gog.KV[string, string]{},
+		container: m.root,
+		body:      "",
+	})
+
+	m.activeContextID = contextID
 	m.selectedID = ""
+
 	m.eventBus.Notify(RegistryStructureChangedEvent{
 		Registry: m,
 	})

@@ -14,4 +14,5 @@ type ResourceKind string
 const (
 	ResourceKindEndpoint ResourceKind = "endpoint"
 	ResourceKindWorkflow ResourceKind = "workflow"
+	ResourceKindContext  ResourceKind = "context"
 )

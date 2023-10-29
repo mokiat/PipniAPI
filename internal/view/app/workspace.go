@@ -8,11 +8,14 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workflow"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
+	"github.com/mokiat/PipniAPI/internal/shortcuts"
 	contextview "github.com/mokiat/PipniAPI/internal/view/context"
 	endpointview "github.com/mokiat/PipniAPI/internal/view/endpoint"
 	"github.com/mokiat/PipniAPI/internal/view/welcome"
-	"github.com/mokiat/PipniAPI/internal/view/widget"
 	workflowview "github.com/mokiat/PipniAPI/internal/view/workflow"
+	"github.com/mokiat/PipniAPI/internal/widget"
+	"github.com/mokiat/gog/opt"
+	"github.com/mokiat/lacking/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -24,29 +27,32 @@ var Workspace = mvc.EventListener(co.Define(&workspaceComponent{}))
 
 type WorkspaceData struct {
 	WorkspaceModel *workspace.Model
-	ContextModel   *context.Model
 }
+
+var _ ui.ElementKeyboardHandler = (*workspaceComponent)(nil)
+var _ ui.ElementStateHandler = (*workspaceComponent)(nil)
 
 type workspaceComponent struct {
 	co.BaseComponent
 
 	mdlWorkspace *workspace.Model
-	mdlContext   *context.Model
 }
 
 func (c *workspaceComponent) OnUpsert() {
 	data := co.GetData[WorkspaceData](c.Properties())
 	c.mdlWorkspace = data.WorkspaceModel
-	c.mdlContext = data.ContextModel
 }
 
 func (c *workspaceComponent) Render() co.Instance {
 	selectedEditor := c.mdlWorkspace.SelectedEditor()
 
-	return co.New(std.Container, func() {
+	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
-		co.WithData(std.ContainerData{
-			Layout: layout.Frame(),
+		co.WithData(std.ElementData{
+			Essence:   c,
+			Focusable: opt.V(true),
+			Focused:   opt.V(true),
+			Layout:    layout.Frame(),
 		})
 
 		co.WithChild("tabbar", co.New(std.Tabbar, func() {
@@ -87,8 +93,7 @@ func (c *workspaceComponent) Render() co.Instance {
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
 				co.WithData(contextview.EditorData{
-					ContextModel: c.mdlContext,
-					EditorModel:  editor,
+					EditorModel: editor,
 				})
 			}))
 
@@ -110,7 +115,7 @@ func (c *workspaceComponent) Render() co.Instance {
 					VerticalAlignment:   layout.VerticalAlignmentCenter,
 				})
 				co.WithData(workflowview.EditorData{
-					// TODO
+					EditorModel: editor,
 				})
 			}))
 
@@ -140,14 +145,44 @@ func (c *workspaceComponent) OnEvent(event mvc.Event) {
 	}
 }
 
+func (c *workspaceComponent) OnKeyboardEvent(element *ui.Element, event ui.KeyboardEvent) bool {
+	os := element.Window().Platform().OS()
+	if shortcuts.IsClose(os, event) {
+		if event.Action == ui.KeyboardActionDown {
+			if selectedEditor := c.mdlWorkspace.SelectedEditor(); selectedEditor != nil {
+				c.closeEditor(selectedEditor, false)
+			} else if len(c.mdlWorkspace.Editors()) == 0 {
+				co.Window(c.Scope()).Close()
+			}
+		}
+		return true
+	}
+	if shortcuts.IsSave(os, event) {
+		if event.Action == ui.KeyboardActionDown {
+			if selectedEditor := c.mdlWorkspace.SelectedEditor(); selectedEditor != nil {
+				c.saveEditor(selectedEditor)
+			}
+		}
+	}
+	return false
+}
+
+func (c *workspaceComponent) OnSave(element *ui.Element) bool {
+	if selectedEditor := c.mdlWorkspace.SelectedEditor(); selectedEditor != nil {
+		c.saveEditor(selectedEditor)
+		return true
+	}
+	return false
+}
+
 func (c *workspaceComponent) editorImage(editor workspace.Editor) *ui.Image {
 	switch editor.(type) {
+	case *context.Editor:
+		return co.OpenImage(c.Scope(), "images/context.png")
 	case *endpoint.Editor:
 		return co.OpenImage(c.Scope(), "images/ping.png")
 	case *workflow.Editor:
 		return co.OpenImage(c.Scope(), "images/workflow.png")
-	case *context.Editor:
-		return co.OpenImage(c.Scope(), "images/settings.png")
 	default:
 		return nil
 	}
@@ -155,6 +190,18 @@ func (c *workspaceComponent) editorImage(editor workspace.Editor) *ui.Image {
 
 func (c *workspaceComponent) selectEditor(editor workspace.Editor) {
 	c.mdlWorkspace.SetSelectedID(editor.ID())
+}
+
+func (c *workspaceComponent) saveEditor(editor workspace.Editor) {
+	if err := editor.Save(); err != nil {
+		log.Error("Error saving editor changes: %v", err)
+		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
+			co.WithData(widget.NotificationModalData{
+				Icon: co.OpenImage(c.Scope(), "images/error.png"),
+				Text: "The program encountered an error.\n\nChanges could not be saved.",
+			})
+		}))
+	}
 }
 
 func (c *workspaceComponent) closeEditor(editor workspace.Editor, force bool) {
