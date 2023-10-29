@@ -97,7 +97,7 @@ func (m *Model) CanMoveUp(resource Resource) bool {
 	if resource == nil {
 		return false
 	}
-	// TODO: Once there is nesting of containers, this should be more
+	// NOTE: Once there is nesting of containers, this should be more
 	// complicated and consider the whole tree and not just the container
 	// (e.g. can the resource move to an upper sibling container)
 	container := resource.Container()
@@ -120,7 +120,7 @@ func (m *Model) CanMoveDown(resource Resource) bool {
 	if resource == nil {
 		return false
 	}
-	// TODO: Once there is nesting of containers, this should be more
+	// NOTE: Once there is nesting of containers, this should be more
 	// complicated and consider the whole tree and not just the container
 	// (e.g. can the resource move to a lower sibling container)
 	container := resource.Container()

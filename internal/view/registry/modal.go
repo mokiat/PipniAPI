@@ -215,7 +215,7 @@ func (c *modalComponent) Render() co.Instance {
 }
 
 func (c *modalComponent) resourceInfo(kind registry.ResourceKind) string {
-	// TODO: Manual text wrapping won't be needed here once a TextArea is used.
+	// NOTE: Manual text wrapping won't be needed here once a TextArea is used.
 	switch kind {
 	case registry.ResourceKindEndpoint:
 		return "An Endpoint resource represents a specific RESTful endpoint\ninvocation.\n\nEnter a name to properly reflect the endpoint's purpose."

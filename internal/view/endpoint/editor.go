@@ -244,7 +244,7 @@ func (c *editorComponent) Render() co.Instance {
 							Icon:     co.OpenImage(c.Scope(), "images/stats.png"),
 							Text:     "Stats",
 							Selected: c.mdlEditor.ResponseTab() == endpoint.EditorTabStats,
-							Enabled:  opt.V(false), // TODO: To be added
+							Enabled:  opt.V(false),
 						})
 						co.WithCallbackData(std.ToolbarButtonCallbackData{
 							OnClick: func() {

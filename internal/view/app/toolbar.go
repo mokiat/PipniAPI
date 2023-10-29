@@ -138,13 +138,9 @@ func (c *toolbarComponent) OnEvent(event mvc.Event) {
 	}
 }
 
-func (c *toolbarComponent) importToRegistry() {
-	// TODO: To be added
-}
+func (c *toolbarComponent) importToRegistry() {}
 
-func (c *toolbarComponent) exportFromRegistry() {
-	// TODO: To be added
-}
+func (c *toolbarComponent) exportFromRegistry() {}
 
 func (c *toolbarComponent) cutContent() {
 	co.Window(c.Scope()).Cut()

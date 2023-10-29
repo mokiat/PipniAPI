@@ -57,8 +57,6 @@ func (m *Model) loadFromDTO(dtoRegistry *storage.RegistryDTO) {
 			id:        dtoWorkflow.ID,
 			name:      dtoWorkflow.Name,
 			container: root,
-
-			// TODO: more fields
 		})
 	}
 
