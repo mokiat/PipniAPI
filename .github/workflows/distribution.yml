@@ -34,7 +34,9 @@ jobs:
 
       - name: Build MacOS
         if: matrix.os == 'macos-latest'
-        run: lacking dist macos ./
+        run: |
+          lacking dist macos ./
+          zip -r 'dist/macos/PipniAPI.zip' 'dist/macos/Pipni API.app'
 
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'
