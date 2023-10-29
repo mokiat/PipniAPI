@@ -121,6 +121,7 @@ func (c *editboxComponent) Render() co.Instance {
 		co.WithData(std.ElementData{
 			Essence:   c,
 			Focusable: opt.V(true),
+			Focused:   opt.V(true), // TODO: should be configured from outside
 			IdealSize: opt.V(ui.Size{
 				Width:  c.textWidth + textPadding,
 				Height: c.textHeight,
