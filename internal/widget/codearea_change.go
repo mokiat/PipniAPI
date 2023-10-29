@@ -45,6 +45,45 @@ func (c *codeAreaComponent) createChangeInsertLines(lines [][]rune) state.Change
 	return c.createChange(forward, reverse)
 }
 
+func (c *codeAreaComponent) createChangeDeleteSelection() state.Change {
+	return c.createChangeReplaceSelection([][]rune{})
+}
+
+func (c *codeAreaComponent) createChangeReplaceSelection(replacement [][]rune) state.Change {
+	fromRow, toRow := c.selectedRows()
+	if fromRow >= toRow {
+		return nil
+	}
+	fromRowFromColumn, _ := c.selectedColumns(fromRow)
+	_, toRowToColumn := c.selectedColumns(toRow - 1)
+	newToRow, newToColumn := c.spanBounds(fromRow, fromRowFromColumn, replacement)
+	deletedLines := c.selectedLines()
+
+	forward := []state.Action{
+		c.createActionDeleteSpan(fromRow, fromRowFromColumn, toRow, toRowToColumn),
+		c.createActionInsertSpan(fromRow, fromRowFromColumn, replacement),
+		c.createActionMoveCursor(newToRow-1, newToColumn),
+		c.createActionMoveSelector(newToRow-1, newToColumn),
+	}
+	reverse := []state.Action{
+		c.createActionDeleteSpan(fromRow, fromRowFromColumn, newToRow, newToColumn),
+		c.createActionInsertSpan(fromRow, fromRowFromColumn, deletedLines),
+		c.createActionMoveCursor(c.cursorRow, c.cursorColumn),
+		c.createActionMoveSelector(c.selectorRow, c.selectorColumn),
+	}
+	return c.createChange(forward, reverse)
+}
+
+func (c *codeAreaComponent) spanBounds(row, column int, span [][]rune) (int, int) {
+	if len(span) == 0 {
+		return row + 1, column
+	}
+	if len(span) == 1 {
+		return row + 1, column + len(span[0])
+	}
+	return row + len(span), len(span[len(span)-1])
+}
+
 func (c *codeAreaComponent) createChange(forward, reverse []state.Action) state.Change {
 	return state.AccumActionChange(forward, reverse, codeAreaChangeAccumulationDuration)
 }

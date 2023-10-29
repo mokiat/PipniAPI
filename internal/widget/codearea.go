@@ -162,10 +162,9 @@ func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.Clipb
 			return false
 		}
 		if c.hasSelection() {
-			// TODO
-			// 		text := string(c.selectedText())
-			// 		element.Window().RequestCopy(text)
-			// 		c.applyChange(c.changeDeleteSelection())
+			text := c.linesToText(c.selectedLines())
+			element.Window().RequestCopy(text)
+			c.applyChange(c.createChangeDeleteSelection())
 			c.handleChanged()
 		}
 		return true
@@ -181,11 +180,9 @@ func (c *codeAreaComponent) OnClipboardEvent(element *ui.Element, event ui.Clipb
 		if c.isReadOnly {
 			return false
 		}
-
 		lines := c.textToLines(event.Text)
 		if c.hasSelection() {
-			// TODO
-			// 		c.applyChange(c.changeReplaceSelection([]rune(event.Text)))
+			c.applyChange(c.createChangeReplaceSelection(lines))
 		} else {
 			c.applyChange(c.createChangeInsertLines(lines))
 		}

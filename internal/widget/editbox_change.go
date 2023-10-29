@@ -24,25 +24,10 @@ func (c *editboxComponent) createChangeInsertSegment(segment []rune) state.Chang
 }
 
 func (c *editboxComponent) createChangeDeleteSelection() state.Change {
-	fromColumn, toColumn := c.selectedColumns()
-	if fromColumn >= toColumn {
-		return nil
-	}
-	selectedSegment := slices.Clone(c.line[fromColumn:toColumn])
-	forward := []state.Action{
-		c.createActionMoveSelector(fromColumn),
-		c.createActionMoveCursor(fromColumn),
-		c.createActionDeleteSegment(fromColumn, toColumn),
-	}
-	reverse := []state.Action{
-		c.createActionInsertSegment(fromColumn, selectedSegment),
-		c.createActionMoveCursor(c.cursorColumn),
-		c.createActionMoveSelector(c.selectorColumn),
-	}
-	return c.createChange(forward, reverse)
+	return c.createChangeReplaceSelection([]rune{})
 }
 
-func (c *editboxComponent) createChangeReplaceSelection(segment []rune) state.Change {
+func (c *editboxComponent) createChangeReplaceSelection(replacement []rune) state.Change {
 	fromColumn, toColumn := c.selectedColumns()
 	if fromColumn >= toColumn {
 		return nil
@@ -50,14 +35,14 @@ func (c *editboxComponent) createChangeReplaceSelection(segment []rune) state.Ch
 	selectedSegment := slices.Clone(c.line[fromColumn:toColumn])
 	forward := []state.Action{
 		c.createActionDeleteSegment(fromColumn, toColumn),
-		c.createActionInsertSegment(fromColumn, segment),
-		c.createActionMoveCursor(fromColumn + len(segment)),
-		c.createActionMoveSelector(fromColumn + len(segment)),
+		c.createActionInsertSegment(fromColumn, replacement),
+		c.createActionMoveCursor(fromColumn + len(replacement)),
+		c.createActionMoveSelector(fromColumn + len(replacement)),
 	}
 	reverse := []state.Action{
 		c.createActionMoveCursor(c.cursorColumn),
 		c.createActionMoveSelector(c.selectorColumn),
-		c.createActionDeleteSegment(fromColumn, fromColumn+len(segment)),
+		c.createActionDeleteSegment(fromColumn, fromColumn+len(replacement)),
 		c.createActionInsertSegment(fromColumn, selectedSegment),
 	}
 	return c.createChange(forward, reverse)
