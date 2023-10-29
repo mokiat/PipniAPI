@@ -25,7 +25,7 @@ const (
 	editboxBorderRadius               = float32(8.0)
 	editboxKeyScrollSpeed             = 20
 	editboxFontSize                   = float32(18.0)
-	editboxChangeAccumulationDuration = 500 * time.Millisecond
+	editboxChangeAccumulationDuration = time.Second
 )
 
 var EditBox = co.Define(&editboxComponent{})

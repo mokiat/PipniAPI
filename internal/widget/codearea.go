@@ -30,7 +30,7 @@ const (
 	codeAreaBorderSize                 = float32(2.0)
 	codeAreaKeyScrollSpeed             = 20
 	codeAreaFontSize                   = float32(18.0)
-	codeAreaChangeAccumulationDuration = 500 * time.Millisecond
+	codeAreaChangeAccumulationDuration = time.Second
 )
 
 var CodeArea = co.Define(&codeAreaComponent{})
