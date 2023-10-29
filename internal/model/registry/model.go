@@ -147,14 +147,18 @@ func (m *Model) CreateResource(parent Container, name string, kind ResourceKind)
 			container: parent,
 			id:        uuid.Must(uuid.NewRandom()).String(),
 			name:      name,
-			// TODO: Initialize more props. Or maybe consider a newEndpoint function
 		}
 	case ResourceKindWorkflow:
 		resource = &Workflow{
 			container: parent,
 			id:        uuid.Must(uuid.NewRandom()).String(),
 			name:      name,
-			// TODO: Initialize more props. Or maybe consider a newWorkflow function
+		}
+	case ResourceKindContext:
+		resource = &Context{
+			container: parent,
+			id:        uuid.Must(uuid.NewRandom()).String(),
+			name:      name,
 		}
 	default:
 		log.Warn("Unknown resource kind %q", kind)
