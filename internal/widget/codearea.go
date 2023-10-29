@@ -459,23 +459,21 @@ func (c *codeAreaComponent) onKeyboardPressEvent(element *ui.Element, event ui.K
 		if c.isReadOnly {
 			return false
 		}
-		c.breakLine()
-		if !extendSelection {
-			c.clearSelection()
+		lines := [][]rune{
+			{},
+			{},
+		}
+		if c.hasSelection() {
+			c.applyChange(c.createChangeReplaceSelection(lines))
+		} else {
+			c.applyChange(c.createChangeInsertLines(lines))
 		}
 		c.handleChanged()
 		return true
 
 	case ui.KeyCodeTab:
-		if c.isReadOnly {
-			return false
-		}
-		c.appendCharacter('\t')
-		if !extendSelection {
-			c.clearSelection()
-		}
-		c.handleChanged()
-		return true
+		event.Rune = '\t'
+		return c.onKeyboardTypeEvent(element, event)
 
 	default:
 		return false
@@ -486,39 +484,16 @@ func (c *codeAreaComponent) onKeyboardTypeEvent(element *ui.Element, event ui.Ke
 	if c.isReadOnly {
 		return false
 	}
-	c.appendCharacter(event.Rune)
-	c.clearSelection()
+	lines := [][]rune{
+		{event.Rune},
+	}
+	if c.hasSelection() {
+		c.applyChange(c.createChangeReplaceSelection(lines))
+	} else {
+		c.applyChange(c.createChangeInsertLines(lines))
+	}
 	c.handleChanged()
 	return true
-}
-
-func (c *codeAreaComponent) refreshTextSize() {
-	txtWidth := float32(0.0)
-	for _, line := range c.lines {
-		lineWidth := c.font.LineWidth(line, c.fontSize)
-		txtWidth = max(txtWidth, lineWidth)
-	}
-	txtHeight := c.font.LineHeight(c.fontSize) * float32(len(c.lines))
-
-	c.textWidth = codeAreaTextPaddingLeft + int(math.Ceil(float64(txtWidth))) + codeAreaTextPaddingRight
-	c.textHeight = int(math.Ceil(float64(txtHeight)))
-
-	rulerText := strconv.Itoa(len(c.lines))
-	digitSize := c.font.LineWidth([]rune(rulerText), c.fontSize)
-	rulerTextWidth := int(math.Ceil(float64(digitSize)))
-	c.rulerWidth = codeAreaRulerPaddingLeft + rulerTextWidth + codeAreaRulerPaddingRight
-}
-
-func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
-	bounds := element.ContentBounds()
-
-	textPadding := codeAreaTextPaddingLeft + codeAreaTextPaddingRight
-	availableTextWidth := bounds.Width - c.rulerWidth - textPadding
-	availableTextHeight := bounds.Height
-	c.maxOffsetX = float32(max(c.textWidth-availableTextWidth, 0))
-	c.maxOffsetY = float32(max(c.textHeight-availableTextHeight, 0))
-	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
-	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
 }
 
 func (c *codeAreaComponent) findCursorRow(element *ui.Element, y int) int {
@@ -554,28 +529,6 @@ func (c *codeAreaComponent) findCursorColumn(element *ui.Element, x int) int {
 	return bestColumn
 }
 
-func (c *codeAreaComponent) appendCharacter(ch rune) {
-	line := c.lines[c.cursorRow]
-	preCursorLine := line[:c.cursorColumn]
-	postCursorLine := line[c.cursorColumn:]
-	c.lines[c.cursorRow] = gog.Concat(
-		preCursorLine,
-		[]rune{ch},
-		postCursorLine,
-	)
-	c.cursorColumn++
-}
-
-func (c *codeAreaComponent) breakLine() {
-	line := c.lines[c.cursorRow]
-	preCursorLine := line[:c.cursorColumn]
-	postCursorLine := line[c.cursorColumn:]
-	c.lines[c.cursorRow] = preCursorLine
-	c.lines = slices.Insert(c.lines, c.cursorRow+1, postCursorLine)
-	c.moveCursorDown()
-	c.moveCursorToStartOfLine()
-}
-
 func (c *codeAreaComponent) eraseLeft() {
 	if c.cursorColumn > 0 {
 		line := c.lines[c.cursorRow]
@@ -605,6 +558,35 @@ func (c *codeAreaComponent) eraseRight() {
 			c.lines = slices.Delete(c.lines, movedRow, movedRow+1)
 		}
 	}
+}
+
+func (c *codeAreaComponent) refreshTextSize() {
+	txtWidth := float32(0.0)
+	for _, line := range c.lines {
+		lineWidth := c.font.LineWidth(line, c.fontSize)
+		txtWidth = max(txtWidth, lineWidth)
+	}
+	txtHeight := c.font.LineHeight(c.fontSize) * float32(len(c.lines))
+
+	c.textWidth = codeAreaTextPaddingLeft + int(math.Ceil(float64(txtWidth))) + codeAreaTextPaddingRight
+	c.textHeight = int(math.Ceil(float64(txtHeight)))
+
+	rulerText := strconv.Itoa(len(c.lines))
+	digitSize := c.font.LineWidth([]rune(rulerText), c.fontSize)
+	rulerTextWidth := int(math.Ceil(float64(digitSize)))
+	c.rulerWidth = codeAreaRulerPaddingLeft + rulerTextWidth + codeAreaRulerPaddingRight
+}
+
+func (c *codeAreaComponent) refreshScrollBounds(element *ui.Element) {
+	bounds := element.ContentBounds()
+
+	textPadding := codeAreaTextPaddingLeft + codeAreaTextPaddingRight
+	availableTextWidth := bounds.Width - c.rulerWidth - textPadding
+	availableTextHeight := bounds.Height
+	c.maxOffsetX = float32(max(c.textWidth-availableTextWidth, 0))
+	c.maxOffsetY = float32(max(c.textHeight-availableTextHeight, 0))
+	c.offsetX = min(max(c.offsetX, 0), c.maxOffsetX)
+	c.offsetY = min(max(c.offsetY, 0), c.maxOffsetY)
 }
 
 func (c *codeAreaComponent) constructText() string {
