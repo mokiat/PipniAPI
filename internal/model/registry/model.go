@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mokiat/PipniAPI/internal/storage"
 	"github.com/mokiat/gog"
-	"github.com/mokiat/lacking/log"
+	"github.com/mokiat/lacking/debug/log"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 

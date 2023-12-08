@@ -4,7 +4,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog"
-	"github.com/mokiat/lacking/log"
+	"github.com/mokiat/lacking/debug/log"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"

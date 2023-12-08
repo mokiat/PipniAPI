@@ -7,7 +7,7 @@ import (
 	"github.com/mokiat/PipniAPI/resources"
 	glapp "github.com/mokiat/lacking-native/app"
 	glui "github.com/mokiat/lacking-native/ui"
-	"github.com/mokiat/lacking/log"
+	"github.com/mokiat/lacking/debug/log"
 	"github.com/mokiat/lacking/ui"
 	"github.com/mokiat/lacking/util/resource"
 )

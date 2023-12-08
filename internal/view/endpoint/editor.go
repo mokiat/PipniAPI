@@ -9,7 +9,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
-	"github.com/mokiat/lacking/log"
+	"github.com/mokiat/lacking/debug/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
