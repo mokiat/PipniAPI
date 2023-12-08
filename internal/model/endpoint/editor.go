@@ -10,7 +10,7 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/gog"
-	"github.com/mokiat/lacking/log"
+	"github.com/mokiat/lacking/debug/log"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
