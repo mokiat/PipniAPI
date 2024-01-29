@@ -91,14 +91,14 @@ func (c *editorComponent) Render() co.Instance {
 				})
 			}))
 
-			co.WithChild("uri", co.New(widget.EditBox, func() {
+			co.WithChild("uri", co.New(std.EditBox, func() {
 				co.WithLayoutData(layout.Data{
 					HorizontalAlignment: layout.HorizontalAlignmentCenter,
 				})
-				co.WithData(widget.EditBoxData{
+				co.WithData(std.EditBoxData{
 					Text: c.mdlEditor.URI(),
 				})
-				co.WithCallbackData(widget.EditBoxCallbackData{
+				co.WithCallbackData(std.EditBoxCallbackData{
 					OnChange: func(text string) {
 						c.changeURI(text)
 					},

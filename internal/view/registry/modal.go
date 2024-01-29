@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/mokiat/PipniAPI/internal/model/registry"
-	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -143,14 +142,14 @@ func (c *modalComponent) Render() co.Instance {
 						})
 					}))
 
-					co.WithChild("editbox", co.New(widget.EditBox, func() {
+					co.WithChild("editbox", co.New(std.EditBox, func() {
 						co.WithLayoutData(layout.Data{
 							HorizontalAlignment: layout.HorizontalAlignmentCenter,
 						})
-						co.WithData(widget.EditBoxData{
+						co.WithData(std.EditBoxData{
 							Text: c.name,
 						})
-						co.WithCallbackData(widget.EditBoxCallbackData{
+						co.WithCallbackData(std.EditBoxCallbackData{
 							OnChange: func(text string) {
 								c.setName(text)
 							},
