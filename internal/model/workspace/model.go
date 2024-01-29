@@ -96,7 +96,7 @@ func (m *Model) SelectedEditor() Editor {
 	return m.FindEditor(m.selectedID)
 }
 
-func (m Model) IsDirty() bool {
+func (m *Model) IsDirty() bool {
 	return slices.ContainsFunc(m.editors, func(editor Editor) bool {
 		return editor.CanSave()
 	})

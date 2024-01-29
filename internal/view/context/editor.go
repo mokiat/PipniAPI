@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/mokiat/PipniAPI/internal/model/context"
-	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
@@ -66,30 +65,30 @@ func (c *editorComponent) Render() co.Instance {
 							Layout: layout.Anchor(),
 						})
 
-						co.WithChild("name", co.New(widget.EditBox, func() {
+						co.WithChild("name", co.New(std.EditBox, func() {
 							co.WithLayoutData(layout.Data{
 								Left:  opt.V(0),
 								Width: opt.V(200),
 							})
-							co.WithData(widget.EditBoxData{
+							co.WithData(std.EditBoxData{
 								Text: name,
 							})
-							co.WithCallbackData(widget.EditBoxCallbackData{
+							co.WithCallbackData(std.EditBoxCallbackData{
 								OnChange: func(newName string) {
 									c.changePropertyName(index, newName)
 								},
 							})
 						}))
 
-						co.WithChild("value", co.New(widget.EditBox, func() {
+						co.WithChild("value", co.New(std.EditBox, func() {
 							co.WithLayoutData(layout.Data{
 								Left:  opt.V(205),
 								Right: opt.V(40),
 							})
-							co.WithData(widget.EditBoxData{
+							co.WithData(std.EditBoxData{
 								Text: value,
 							})
-							co.WithCallbackData(widget.EditBoxCallbackData{
+							co.WithCallbackData(std.EditBoxCallbackData{
 								OnChange: func(newValue string) {
 									c.changePropertyValue(index, newValue)
 								},

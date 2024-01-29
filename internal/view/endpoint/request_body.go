@@ -2,9 +2,9 @@ package endpoint
 
 import (
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
-	"github.com/mokiat/PipniAPI/internal/widget"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/mvc"
+	"github.com/mokiat/lacking/ui/std"
 )
 
 var RequestBody = mvc.EventListener(co.Define(&requestBodyComponent{}))
@@ -25,12 +25,12 @@ func (c *requestBodyComponent) OnUpsert() {
 }
 
 func (c *requestBodyComponent) Render() co.Instance {
-	return co.New(widget.CodeArea, func() {
+	return co.New(std.CodeArea, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
-		co.WithData(widget.CodeAreaData{
+		co.WithData(std.CodeAreaData{
 			Code: c.mdlEditor.RequestBody(),
 		})
-		co.WithCallbackData(widget.CodeAreaCallbackData{
+		co.WithCallbackData(std.CodeAreaCallbackData{
 			OnChange: c.changeRequestBody,
 		})
 	})
