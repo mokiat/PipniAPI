@@ -12,7 +12,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Editor = mvc.EventListener(co.Define(&editorComponent{}))
+var Editor = mvc.EventListener(co.Define[*editorComponent]())
 
 type EditorData struct {
 	EditorModel *context.Editor

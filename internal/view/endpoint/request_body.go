@@ -7,7 +7,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var RequestBody = mvc.EventListener(co.Define(&requestBodyComponent{}))
+var RequestBody = mvc.EventListener(co.Define[*requestBodyComponent]())
 
 type RequestBodyData struct {
 	EditorModel *endpoint.Editor

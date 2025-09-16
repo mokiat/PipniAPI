@@ -12,7 +12,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var RequestHeaders = mvc.EventListener(co.Define(&requestHeadersComponent{}))
+var RequestHeaders = mvc.EventListener(co.Define[*requestHeadersComponent]())
 
 type RequestHeadersData struct {
 	EditorModel *endpoint.Editor

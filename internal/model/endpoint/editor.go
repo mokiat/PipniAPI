@@ -3,6 +3,7 @@ package endpoint
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"slices"
 	"text/template"
@@ -10,7 +11,6 @@ import (
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/model/workspace"
 	"github.com/mokiat/gog"
-	"github.com/mokiat/lacking/debug/log"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
@@ -252,13 +252,13 @@ func (e *Editor) evaluate(text string) string {
 
 	tmpl, err := template.New("tmp").Parse(text)
 	if err != nil {
-		log.Warn("Cannot evaluate text expression: %v", err)
+		slog.Warn("Cannot evaluate text expression", slog.String("error", err.Error()))
 		return text
 	}
 
 	var output bytes.Buffer
 	if err := tmpl.Execute(&output, activeContext.DataProperties()); err != nil {
-		log.Warn("Cannot evaluate text expression: %v", err)
+		slog.Warn("Cannot evaluate text expression", slog.String("error", err.Error()))
 		return text
 	}
 	return output.String()

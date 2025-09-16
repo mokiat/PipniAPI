@@ -3,13 +3,13 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
 	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog"
 	"github.com/mokiat/gog/opt"
-	"github.com/mokiat/lacking/debug/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -25,7 +25,7 @@ var supportedMethods = []string{
 	http.MethodDelete,
 }
 
-var Editor = mvc.EventListener(co.Define(&editorComponent{}))
+var Editor = mvc.EventListener(co.Define[*editorComponent]())
 
 type EditorData struct {
 	EditorModel *endpoint.Editor
@@ -353,7 +353,7 @@ func (c *editorComponent) handleResponse(response *APIResponse, err error) {
 		c.mdlEditor.SetResponseBody(response.Body)
 		c.mdlEditor.SetHTTPResponseHeaders(response.Headers)
 	} else {
-		log.Warn("API call error: %v", err)
+		slog.Warn("API call error", slog.String("error", err.Error()))
 		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
 			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),

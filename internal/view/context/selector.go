@@ -1,16 +1,17 @@
 package context
 
 import (
+	"log/slog"
+
 	"github.com/mokiat/PipniAPI/internal/model/registry"
 	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog"
-	"github.com/mokiat/lacking/debug/log"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Selector = mvc.EventListener(co.Define(&selectorComponent{}))
+var Selector = mvc.EventListener(co.Define[*selectorComponent]())
 
 type SelectorData struct {
 	RegistryModel *registry.Model
@@ -81,7 +82,7 @@ func (c *selectorComponent) listContexts() []*registry.Context {
 
 func (c *selectorComponent) saveChanges() {
 	if err := c.mdlRegistry.Save(); err != nil {
-		log.Error("Error saving registry: %v", err)
+		slog.Error("Error saving registry", slog.String("error", err.Error()))
 		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
 			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),

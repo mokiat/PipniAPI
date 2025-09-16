@@ -8,7 +8,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Item = co.Define(&itemComponent{})
+var Item = co.Define[*itemComponent]()
 
 type ItemData struct {
 	Selected bool

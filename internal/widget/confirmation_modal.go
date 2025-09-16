@@ -8,7 +8,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var ConfirmationModal = co.Define(&confirmationModalComponent{})
+var ConfirmationModal = co.Define[*confirmationModalComponent]()
 
 type ConfirmationModalData struct {
 	Icon *ui.Image

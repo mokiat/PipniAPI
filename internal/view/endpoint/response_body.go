@@ -7,7 +7,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var ResponseBody = mvc.EventListener(co.Define(&responseBodyComponent{}))
+var ResponseBody = mvc.EventListener(co.Define[*responseBodyComponent]())
 
 type ResponseBodyData struct {
 	EditorModel *endpoint.Editor

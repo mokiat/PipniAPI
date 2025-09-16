@@ -3,13 +3,13 @@ package registry
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/google/uuid"
 	"github.com/mokiat/PipniAPI/internal/storage"
 	"github.com/mokiat/gog"
-	"github.com/mokiat/lacking/debug/log"
 	"github.com/mokiat/lacking/ui/mvc"
 )
 
@@ -161,7 +161,7 @@ func (m *Model) CreateResource(parent Container, name string, kind ResourceKind)
 			name:      name,
 		}
 	default:
-		log.Warn("Unknown resource kind %q", kind)
+		slog.Warn("Unknown resource kind", slog.String("kind", string(kind)))
 		return
 	}
 	parent.AppendResource(resource)

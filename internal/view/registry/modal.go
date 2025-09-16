@@ -11,7 +11,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Modal = co.Define(&modalComponent{})
+var Modal = co.Define[*modalComponent]()
 
 type ModalData struct {
 	Name          string

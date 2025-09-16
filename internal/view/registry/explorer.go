@@ -10,7 +10,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Explorer = mvc.EventListener(co.Define(&explorerComponent{}))
+var Explorer = mvc.EventListener(co.Define[*explorerComponent]())
 
 type ExplorerData struct {
 	RegistryModel *registry.Model

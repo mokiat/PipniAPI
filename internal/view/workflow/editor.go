@@ -9,7 +9,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Editor = co.Define(&editorComponent{})
+var Editor = co.Define[*editorComponent]()
 
 type EditorData struct {
 	EditorModel *workflow.Editor

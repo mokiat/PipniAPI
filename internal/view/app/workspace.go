@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/mokiat/PipniAPI/internal/model/context"
 	"github.com/mokiat/PipniAPI/internal/model/endpoint"
@@ -15,7 +16,6 @@ import (
 	workflowview "github.com/mokiat/PipniAPI/internal/view/workflow"
 	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
-	"github.com/mokiat/lacking/debug/log"
 	"github.com/mokiat/lacking/ui"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
@@ -23,7 +23,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Workspace = mvc.EventListener(co.Define(&workspaceComponent{}))
+var Workspace = mvc.EventListener(co.Define[*workspaceComponent]())
 
 type WorkspaceData struct {
 	WorkspaceModel *workspace.Model
@@ -49,10 +49,10 @@ func (c *workspaceComponent) Render() co.Instance {
 	return co.New(std.Element, func() {
 		co.WithLayoutData(c.Properties().LayoutData())
 		co.WithData(std.ElementData{
-			Essence:   c,
-			Focusable: opt.V(true),
-			Focused:   opt.V(true),
-			Layout:    layout.Frame(),
+			Essence:       c,
+			CanAutoFocus:  opt.V(true),
+			CreateFocused: true,
+			Layout:        layout.Frame(),
 		})
 
 		co.WithChild("tabbar", co.New(std.Tabbar, func() {
@@ -194,7 +194,7 @@ func (c *workspaceComponent) selectEditor(editor workspace.Editor) {
 
 func (c *workspaceComponent) saveEditor(editor workspace.Editor) {
 	if err := editor.Save(); err != nil {
-		log.Error("Error saving editor changes: %v", err)
+		slog.Error("Error saving editor changes", slog.String("error", err.Error()))
 		co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
 			co.WithData(widget.NotificationModalData{
 				Icon: co.OpenImage(c.Scope(), "images/error.png"),

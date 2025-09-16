@@ -8,7 +8,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var ActionModal = co.Define(&actionModalComponent{})
+var ActionModal = co.Define[*actionModalComponent]()
 
 type ActionModalCallbackData struct {
 	OnCancel std.OnActionFunc

@@ -26,7 +26,7 @@ Here is how to get started:
 5. Continue from there
 `
 
-var Screen = co.Define(&screenComponent{})
+var Screen = co.Define[*screenComponent]()
 
 type screenComponent struct {
 	co.BaseComponent

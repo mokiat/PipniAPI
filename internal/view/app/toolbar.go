@@ -8,7 +8,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Toolbar = mvc.EventListener(co.Define(&toolbarComponent{}))
+var Toolbar = mvc.EventListener(co.Define[*toolbarComponent]())
 
 type ToolbarData struct {
 	WorkspaceModel *workspace.Model

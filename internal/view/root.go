@@ -3,6 +3,7 @@ package view
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -14,14 +15,13 @@ import (
 	appview "github.com/mokiat/PipniAPI/internal/view/app"
 	"github.com/mokiat/PipniAPI/internal/widget"
 	"github.com/mokiat/gog/opt"
-	"github.com/mokiat/lacking/debug/log"
 	co "github.com/mokiat/lacking/ui/component"
 	"github.com/mokiat/lacking/ui/layout"
 	"github.com/mokiat/lacking/ui/mvc"
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Root = mvc.EventListener(co.Define(&rootComponent{}))
+var Root = mvc.EventListener(co.Define[*rootComponent]())
 
 type rootComponent struct {
 	co.BaseComponent
@@ -37,7 +37,7 @@ func (c *rootComponent) OnCreate() {
 
 	configDir, err := c.configDir()
 	if err != nil {
-		log.Error("Error preparing config dir: %v", err)
+		slog.Error("Error preparing config dir", slog.String("error", err.Error()))
 		configDir = ""
 	}
 
@@ -45,7 +45,7 @@ func (c *rootComponent) OnCreate() {
 	if err := c.mdlRegistry.Load(); err != nil {
 		c.mdlRegistry.Clear() // start with blank
 		if !errors.Is(err, registry.ErrRegistryNotFound) {
-			log.Error("Error loading model: %v", err)
+			slog.Error("Error loading model", slog.String("error", err.Error()))
 			co.OpenOverlay(c.Scope(), co.New(widget.NotificationModal, func() {
 				co.WithData(widget.NotificationModalData{
 					Icon: co.OpenImage(c.Scope(), "images/error.png"),

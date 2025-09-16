@@ -11,7 +11,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var Drawer = co.Define(&drawerComponent{})
+var Drawer = co.Define[*drawerComponent]()
 
 type DrawerData struct {
 	RegistryModel *registry.Model

@@ -15,7 +15,7 @@ func BootstrapApplication(window *ui.Window) {
 	co.Initialize(scope, co.New(Bootstrap, nil))
 }
 
-var Bootstrap = co.Define(&bootstrapComponent{})
+var Bootstrap = co.Define[*bootstrapComponent]()
 
 type bootstrapComponent struct {
 	co.BaseComponent

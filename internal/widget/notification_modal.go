@@ -8,7 +8,7 @@ import (
 	"github.com/mokiat/lacking/ui/std"
 )
 
-var NotificationModal = co.Define(&notificationModalComponent{})
+var NotificationModal = co.Define[*notificationModalComponent]()
 
 type NotificationModalData struct {
 	Icon *ui.Image
